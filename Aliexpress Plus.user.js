@@ -110,7 +110,7 @@ function grabOrders(doc) {
 				title : obtitle,
 				price : obprice,
 				href : oblink,
-				el : escape(tags[i].innerHTML.toString().replace("img-src", "src")).replace(/<null[^>]/g, "<img "))
+				el : escape(tags[i].innerHTML.toString().replace("img-src", "src").replace(/<null[^>]/g, "<img "))
 			});
 		}
 	}
