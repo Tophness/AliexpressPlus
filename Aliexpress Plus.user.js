@@ -6,7 +6,7 @@
 // @include     http://*alibaba.com/wishlist*
 // @include     http://*aliexpress.com/*
 // @require     https://greasyfork.org/scripts/6217-gm-config/code/GM_config.js?version=23537
-// @version     1.6.7
+// @version     1.6.8
 // @grant   GM_getValue
 // @grant   GM_setValue
 // @grant   GM_log
