@@ -15,13 +15,18 @@
 // @exclude	https://www.aliexpress.com/category/*.html*
 // @require	https://code.jquery.com/jquery-1.11.0.js
 // @require     https://greasyfork.org/scripts/6217-gm-config/code/GM_config.js?version=23537
-// @version     1.6.9
+// @version     1.7.0
 // @grant   GM_getValue
 // @grant   GM_setValue
 // @grant   GM_log
 // @grant   GM_registerMenuCommand
 // @noframes
 // ==/UserScript==
+
+if (location.href.indexOf('/item') == -1 || location.href.indexOf('/store/product') == -1 || location.href.indexOf('SearchText=') != -1) {
+  document.getElementById('view-list').click();
+  document.getElementById('price_lowest_1').click();
+}
 
 var jqver = "1.11.0";
 
