@@ -15,7 +15,7 @@
 // @exclude	https://www.aliexpress.com/category/*.html*
 // @require	https://code.jquery.com/jquery-1.11.0.js
 // @require     https://openuserjs.org/src/libs/sizzle/GM_config.min.js
-// @version     1.7.1
+// @version     1.7.2
 // @grant   GM_getValue
 // @grant   GM_setValue
 // @grant   GM_log
@@ -24,7 +24,9 @@
 // ==/UserScript==
 
 if (location.href.indexOf('/item') == -1 || location.href.indexOf('/store/product') == -1 || location.href.indexOf('SearchText=') != -1) {
-	document.getElementById('view-list').click();
+	if(document.getElementById('view-list')){
+		document.getElementById('view-list').click();
+	}
 	if(document.getElementById('price_lowest_1')){
 		document.getElementById('price_lowest_1').click();
 	}
@@ -463,6 +465,9 @@ function FindAllRows() {
 		sortchange4l.innerHTML = elh[sortchange4l.id] + ': ';
 		var sortchange4t = document.createElement('input');
 		sortchange4t.id = 'sortchange4t';
+		sortchange4t.addEventListener("keydown", function () {
+			SortRows(3, this)
+		}, false);
 		//for (key in elh) {
 		//	eval(key + ".id = '" + elh[key] + "';");
 		//}
@@ -507,7 +512,16 @@ function updatecheapest(elchange) {
 	//}
 }
 
+function filterMaxPrice(maxprice){
+		for (var nj = 0; nj < ListingRanks.length; nj++) {
+			if (ListingRanks[nj].totalprice < parseFloat(maxprice)) {
+				uls.appendChild(ListingRanks[nj].el);
+			}
+		}
+}
+
 function insertItems(SortMode) {
+	var maxprice = document.getElementById('sortchange4t').value;
 	if (SortMode == 0) {
 		ListingRanks.sort(function (a, b) {
 			return a.price - b.price;
@@ -531,14 +545,11 @@ function insertItems(SortMode) {
 		ListingRanks.sort(function (a, b) {
 			return a.totalprice - b.totalprice;
 		});
+	} else if (SortMode == 3) {
+		filterMaxPrice(maxprice);
 	}
-	var maxprice = document.getElementById('sortchange4t').value;
 	if (maxprice != "") {
-		for (var nj = 0; nj < ListingRanks.length; nj++) {
-			if (ListingRanks[nj].totalprice < parseFloat(maxprice)) {
-				uls.appendChild(ListingRanks[nj].el);
-			}
-		}
+		filterMaxPrice(maxprice);
 	} else {
 		for (var nj = 0; nj < ListingRanks.length; nj++) {
 			uls.appendChild(ListingRanks[nj].el);
