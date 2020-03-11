@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      2.3.2
+// @version      2.3.3
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
-// @match        https://*aliexpress.com/wholesale?*
-// @match        https://*aliexpress.com/item/*
+// @match        https://*.aliexpress.com/wholesale?*
+// @match        https://*.aliexpress.com/item/*
 // @require      https://cdnjs.cloudflare.com/ajax/libs/tinysort/2.3.6/tinysort.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/tinysort/2.3.6/tinysort.charorder.min.js
 // @license MIT
