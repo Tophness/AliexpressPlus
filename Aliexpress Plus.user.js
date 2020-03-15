@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      2.3.3
+// @version      2.4
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/wholesale?*
+// @match        https://*.aliexpress.com/af/*
 // @match        https://*.aliexpress.com/item/*
 // @require      https://cdnjs.cloudflare.com/ajax/libs/tinysort/2.3.6/tinysort.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/tinysort/2.3.6/tinysort.charorder.min.js
@@ -62,11 +63,11 @@ function process(listitem){
             if(price && price.innerText.indexOf('$') != -1 && listitem.className != "moved" && listitem.className.indexOf('product-card') == -1){
                 var pricefixed = price.innerText.substring(price.innerText.indexOf('$')+1);
                 var shippingfixed;
-                if(shipping.innerText.indexOf('Free Shipping') == -1){
-                    shippingfixed = shipping.innerText.substring(shipping.innerText.indexOf('$')+1);
+                if(shipping.innerText.indexOf('Free Shipping') != -1 || shipping.innerText == ''){
+                    shippingfixed = "0.00";
                 }
                 else{
-                    shippingfixed = "0.00";
+                    shippingfixed = shipping.innerText.substring(shipping.innerText.indexOf('$')+1);
                 }
                 var pricepretext = price.innerText.substring(0, price.innerText.indexOf('$')+1);
                 var finalcost = "";
@@ -135,7 +136,7 @@ function process(listitem){
                     }
                     price.innerHTML = pricepretext + finalcostpart;
                     finalcostdiv.appendChild(finalcostpretext);
-                    if(sortmethod == 0){
+                    if(sortmethod == 1){
                         finalcostspan.className = 'total-posttext';
                         var finalcostbr = document.createElement('br');
                         finalcostbr.style.display = "none";
@@ -180,19 +181,19 @@ function processall(list){
 }
 
 function sortall(listitems){
-    if(sortmethod == 0){
-        tinysort(listitems,{selector:'span.total-current', natural:true});
-    }
-    else if(sortmethod == 1){
+    if(sortmethod == 1){
         tinysort(listitems,{selector:'span.total-current', natural:true});
     }
     else if(sortmethod == 2){
-        tinysort(listitems,{selector:'span.price-current', natural:true});
-    }
-    if(sortmethod == 3){
         tinysort(listitems,{selector:'span.total-current', natural:true});
     }
-    else if(sortmethod == 4){
+    else if(sortmethod == 3){
+        tinysort(listitems,{selector:'span.price-current', natural:true});
+    }
+    if(sortmethod == 4){
+        tinysort(listitems,{selector:'span.total-current', natural:true});
+    }
+    else if(sortmethod == 5){
         tinysort(listitems,{selector:'span.price-current', natural:true, order: 'desc'});
     }
 }
@@ -260,7 +261,7 @@ function insertsearch(){
     var searchbox = document.querySelector(".sort-by-wrapper");
     if(searchbox){
         searchbox.appendChild(sortdiv);
-        document.getElementById('sortchange' + (sortmethod)).setAttribute('style', 'font-weight: bold');
+        document.getElementById('sortchange' + sortmethod).setAttribute('style', 'font-weight: bold');
     }
 }
 
@@ -305,13 +306,13 @@ function waitForEl2(){
     });
 }
 
-if(document.location.href.indexOf('https://www.aliexpress.com/wholesale') != -1){
+if(document.location.href.indexOf('aliexpress.com/wholesale') != -1 || document.location.href.indexOf('aliexpress.com/af') != -1){
     waitForEl();
     processall(document.querySelectorAll("li.list-item"));
     //sortall(document.querySelectorAll("li.list-item"));
     insertsearch();
 }
-else if(document.location.href.indexOf('https://www.aliexpress.com/item') != -1){
+else if(document.location.href.indexOf('aliexpress.com/item') != -1){
     waitForEl2();
     setTimeout((function(){
         checkall(document.querySelectorAll(".item-info"));
