@@ -4,6 +4,7 @@
 // @version      2.4.2
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
+// @match        https://*.aliexpress.com/w/wholesale?*
 // @match        https://*.aliexpress.com/wholesale?*
 // @match        https://*.aliexpress.com/af/*
 // @match        https://*.aliexpress.com/item/*
@@ -304,13 +305,13 @@ function waitForEl2(){
     });
 }
 
-if(document.location.href.indexOf('aliexpress.com/wholesale') != -1 || document.location.href.indexOf('aliexpress.com/af') != -1){
+if(document.location.href.indexOf('/wholesale') != -1 || document.location.href.indexOf('/af') != -1){
     waitForEl();
     processall(document.querySelectorAll("li.list-item"));
     //sortall(document.querySelectorAll("li.list-item"));
     insertsearch();
 }
-else if(document.location.href.indexOf('aliexpress.com/item') != -1){
+else if(document.location.href.indexOf('/item') != -1){
     waitForEl2();
     setTimeout((function(){
         checkall(document.querySelectorAll(".item-info"));
