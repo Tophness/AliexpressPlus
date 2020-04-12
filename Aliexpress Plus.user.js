@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      2.4
+// @version      2.4.2
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/wholesale?*
@@ -88,11 +88,9 @@ function process(listitem){
                 var finalcostpostwhole;
                 var priceunitparttemp;
                 var priceunitel = pricerow.querySelector('span.price-unit');
-                if(pricerow.classList.contains('item-big-promotion')){
-                    priceunitel = listitem.querySelector('div.item-price-row.packaging-sale');
-                    if(priceunitel){
-                        priceunitel = priceunitel.querySelector('span.price-unit');
-                    }
+                var packagingsale = listitem.querySelector('div.item-price-row.packaging-sale')
+                if(packagingsale){
+                    priceunitel = packagingsale.querySelector('span.price-unit');
                 }
                 if(priceunitel){
                     var priceuniteltext = priceunitel.innerText;
@@ -128,7 +126,7 @@ function process(listitem){
                     var finalcostspan = document.createElement('span');
                     finalcostspan.className = 'total-current';
                     finalcostspan.innerHTML = finalcostpostwhole;
-                    if(pricerow.classList.contains('item-big-promotion')){
+                    if(packagingsale){
                         pricerow.querySelector('span.price-unit').innerHTML = " / " + priceunitparttemp;
                     }
                     else{
@@ -292,7 +290,7 @@ var observer2 = new MutationObserver(function(mutations) {
 });
 
 function waitForEl2(){
-    var observera = new MutationObserver(function (mutations, me) {
+    var observerb = new MutationObserver(function (mutations, me) {
         if(document.querySelector(".item-title-block")) {
             me.disconnect();
             observer2.observe(document.querySelector(".bottom-recommendation"), { childList: true, subtree: true });
@@ -300,7 +298,7 @@ function waitForEl2(){
         }
     });
 
-    observera.observe(document, {
+    observerb.observe(document, {
         childList: true,
         subtree: true
     });
@@ -318,3 +316,17 @@ else if(document.location.href.indexOf('aliexpress.com/item') != -1){
         checkall(document.querySelectorAll(".item-info"));
     }),5000);
 }
+
+function fakeScrollDown(){
+setTimeout((function(){
+  window.scrollByPages(1);;
+    if(window.scrollY < window.scrollMaxY){
+        fakeScrollDown();
+    }
+    else{
+        window.scrollTo(0,0);
+    }
+}),100);
+}
+
+fakeScrollDown();
