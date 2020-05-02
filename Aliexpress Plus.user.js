@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      2.4.2
+// @version      2.5
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale?*
@@ -100,10 +100,10 @@ function process(listitem){
                     var finalcostpart;
                     if(pricefixed.indexOf(' - ') != -1){
                         if(sortmethod == 3){
-                            finalcostpart = (parseFloat(pricesplit[1]).toFixed(2) / parseFloat(priceunit)).toFixed(2);
+                            finalcostpart = (parseFloat(pricesplit[1]) / parseFloat(priceunit)).toFixed(2);
                         }
                         else{
-                            finalcostpart = (parseFloat(pricesplit[0]).toFixed(2) / parseFloat(priceunit)).toFixed(2);
+                            finalcostpart = (parseFloat(pricesplit[0]) / parseFloat(priceunit)).toFixed(2);
                         }
                     }
                     else{
@@ -200,6 +200,7 @@ function sortall(listitems){
 function SortRows(mode){
     sortmethod = mode;
     sortall(document.querySelectorAll("li.list-item"));
+    fakeScrollDown();
 }
 function insertsearch(){
     var sortdiv = document.createElement('div');
@@ -305,29 +306,91 @@ function waitForEl2(){
     });
 }
 
+function fakeScrollDown(){
+    setTimeout((function(){
+        window.scrollByPages(1);;
+        if(window.scrollY < window.scrollMaxY){
+            fakeScrollDown();
+        }
+        else{
+            window.scrollTo(0,0);
+        }
+    }),100);
+}
+
+function docalctotal(){
+    var itempageshipping = document.querySelector('.product-shipping-price');
+    if(itempageshipping){
+        itempageshipping = itempageshipping.innerText;
+        if(itempageshipping.indexOf('Free Shipping') != -1){
+            itempageshipping = '0.00';
+        }
+        itempageshipping = parseFloat(itempageshipping.substring(itempageshipping.indexOf('$')+1).trimEnd());
+        var itempageprice = document.querySelector('.product-price-value');
+        if(itempageprice){
+            itempageprice = itempageprice.innerText;
+            var preprice = itempageprice.substring(itempageprice.indexOf(':')+1, itempageprice.indexOf('$')+1);
+            itempageprice = parseFloat(itempageprice.substring(itempageprice.indexOf('$')+1).trimEnd());
+            var itempagetotal = parseFloat(itempageshipping + itempageprice).toFixed(2).toString();
+            var finalcostpretext = document.createElement('span');
+            finalcostpretext.className = 'total-pretext';
+            finalcostpretext.innerHTML = "Total: " + preprice + itempagetotal;
+            finalcostpretext.style.fontSize = "24px";
+            finalcostpretext.style.fontWeight = "700";
+            var finalcostdiv = document.createElement('div');
+            finalcostdiv.className = 'total-current';
+            finalcostdiv.appendChild(finalcostpretext);
+            var insertitemtotal = document.querySelector('.product-action');
+            if(insertitemtotal){
+                var pretextitem = document.querySelector('.total-pretext');
+                if(pretextitem){
+                    pretextitem.innerHTML = "Total: " + preprice + itempagetotal;
+                }
+                else{
+                    insertitemtotal.parentNode.insertBefore(finalcostdiv, insertitemtotal);
+                }
+            }
+        }
+    }
+}
+
+function calctotal(){
+    var proplist = document.querySelector('.sku-wrap');
+    if(proplist && proplist.childNodes.length > 0){
+        var proplistall = proplist.querySelectorAll('.sku-property');
+        for (var i = 0; i < proplistall.length; i++) {
+            var propitem = proplistall[i].querySelectorAll('.sku-property-item');
+            if(!propitem[0].classList.contains('selected')){
+                propitem[0].click();
+            }
+            for (var i2 = 0; i2 < propitem.length; i2++) {
+                propitem[i2].addEventListener('click', function() {
+                    setTimeout((function(){
+                        docalctotal();
+                    }),1000);
+                });
+            }
+        }
+        setTimeout((function(){
+            docalctotal();
+        }),1000);
+    }
+    else{
+        docalctotal();
+    }
+}
+
 if(document.location.href.indexOf('/wholesale') != -1 || document.location.href.indexOf('/af') != -1){
     waitForEl();
     processall(document.querySelectorAll("li.list-item"));
     //sortall(document.querySelectorAll("li.list-item"));
     insertsearch();
+    fakeScrollDown();
 }
 else if(document.location.href.indexOf('/item') != -1){
     waitForEl2();
     setTimeout((function(){
         checkall(document.querySelectorAll(".item-info"));
-    }),5000);
+        calctotal();
+    }),2000);
 }
-
-function fakeScrollDown(){
-setTimeout((function(){
-  window.scrollByPages(1);;
-    if(window.scrollY < window.scrollMaxY){
-        fakeScrollDown();
-    }
-    else{
-        window.scrollTo(0,0);
-    }
-}),100);
-}
-
-fakeScrollDown();
