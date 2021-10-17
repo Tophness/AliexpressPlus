@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Aliexpress Plus
+// @name         Aliexpress Plus 3
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.0.0
+// @version      3.0.1
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -12,6 +12,9 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/tinysort/2.3.6/tinysort.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/tinysort/2.3.6/tinysort.charorder.min.js
 // @require      https://openuserjs.org/src/libs/sizzle/GM_config.min.js
+// @updateURL    https://openuserjs.org/meta/Tophness/Aliexpress_Plus.meta.js
+// @downloadURL  https://openuserjs.org/install/Tophness/Aliexpress_Plus.user.js
+// @copyright    2014, Tophness (https://openuserjs.org/users/Tophness)
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addStyle
@@ -29,20 +32,24 @@ var itemstype = 2;
 
 var GM_SuperValue = new function () {
 
-    var JSON_MarkerStr  = 'json_val: ';
-    var FunctionMarker  = 'function_code: ';
+    var JSON_MarkerStr = 'json_val: ';
+    var FunctionMarker = 'function_code: ';
 
     function ReportError (msg) {
-        if (console && console.error)
+        if (console && console.error){
             console.log (msg);
-        else
+        }
+        else{
             throw new Error (msg);
+        }
     }
 
-    if (typeof GM_setValue != "function")
+    if (typeof GM_setValue != "function"){
         ReportError ('This library requires Greasemonkey! GM_setValue is missing.');
-    if (typeof GM_getValue != "function")
+    }
+    if (typeof GM_getValue != "function"){
         ReportError ('This library requires Greasemonkey! GM_getValue is missing.');
+    }
 
     this.set = function (varName, varValue) {
 
@@ -63,17 +70,18 @@ var GM_SuperValue = new function () {
                 GM_setValue (varName, varValue);
             break;
             case 'number':
-                if (varValue === parseInt (varValue)  &&  Math.abs (varValue) < 2147483647)
+                if (varValue === parseInt (varValue) && Math.abs(varValue) < 2147483647)
                 {
                     GM_setValue (varName, varValue);
                     break;
                 }
+            break;
             case 'object':
-                var safeStr = JSON_MarkerStr + JSON.stringify (varValue);
+                var safeStr = JSON_MarkerStr + JSON.stringify(varValue);
                 GM_setValue (varName, safeStr);
             break;
             case 'function':
-                var safeStr = FunctionMarker + varValue.toString ();
+                var safeStr2 = FunctionMarker + varValue.toString();
                 GM_setValue (varName, safeStr);
             break;
 
@@ -93,23 +101,24 @@ var GM_SuperValue = new function () {
             ReportError ('Suspect, probably illegal, varName sent to GM_SuperValue.get().');
         }
 
-        var varValue    = GM_getValue (varName);
-        if (!varValue)
+        var varValue = GM_getValue(varName);
+        if (!varValue){
             return defaultValue;
+        }
 
         if (typeof varValue == "string") {
             //--- Is it a JSON value?
-            var regxp       = new RegExp ('^' + JSON_MarkerStr + '(.+)$');
-            var m           = varValue.match (regxp);
-            if (m  &&  m.length > 1) {
-                varValue    = JSON.parse ( m[1] );
+            let regxp = new RegExp ('^' + JSON_MarkerStr + '(.+)$');
+            var m = varValue.match (regxp);
+            if(m && m.length > 1) {
+                varValue = JSON.parse ( m[1] );
                 return varValue;
             }
 
-            var regxp       = new RegExp ('^' + FunctionMarker + '((?:.|\n|\r)+)$');
-            var m           = varValue.match (regxp);
-            if (m  &&  m.length > 1) {
-                varValue    = eval ('(' + m[1] + ')');
+            let regxp2 = new RegExp ('^' + FunctionMarker + '((?:.|\n|\r)+)$');
+            let m2 = varValue.match (regxp2);
+            if (m2 && m2.length > 1) {
+                varValue = eval('(' + m2[1] + ')');
                 return varValue;
             }
         }
