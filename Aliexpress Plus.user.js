@@ -11,8 +11,6 @@
 // @match        https://*.aliexpress.com/item/*
 // @require      https://cdnjs.cloudflare.com/ajax/libs/tinysort/2.3.6/tinysort.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/tinysort/2.3.6/tinysort.charorder.min.js
-// @require      https://userscripts-mirror.org/scripts/source/107941.user.js
-// @require      http://rembrandtjs.com/javascripts/browser.min.js
 // @require      https://openuserjs.org/src/libs/sizzle/GM_config.min.js
 // @grant        GM_getValue
 // @grant        GM_setValue
