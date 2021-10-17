@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus 3
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.0.1
+// @version      3.0.2
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -190,7 +190,7 @@ var UseInnerHTMLImgs = GM_config.get('UseInnerHTMLImgs');
 var useTextSearch = GM_config.get('useTextSearch');
 var mode = GM_config.get('mode');
 var similarityratio = parseFloat(GM_config.get('similarity'));
-var sortmethod = GM_config.get('sortmethod');
+var sortmethod = GM_config.fields.sortmethod.settings.options.indexOf(GM_config.get('sortmethod'))+1;
 var pagesearch = GM_config.get('pagesearch');
 
 GM_registerMenuCommand("Configure", () => GM_config.open());
@@ -872,7 +872,7 @@ function insertsearch(){
     var searchbox = document.querySelector(".sort-by-wrapper");
     if(searchbox){
         searchbox.appendChild(sortdiv);
-        document.getElementById('sortchange' + (GM_config.fields.sortmethod.settings.options.indexOf(sortmethod)+1).toString()).setAttribute('style', 'font-weight: bold');
+        document.getElementById('sortchange' + sortmethod.toString()).setAttribute('style', 'font-weight: bold');
     }
 }
 
