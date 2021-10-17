@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus 3
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.0.2
+// @version      3.0.3
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -316,12 +316,6 @@ function sortwishlist(){
     });
 }
 
-function htmlToElements(html) {
-    let template = document.createElement('template');
-    template.innerHTML = html;
-    return template.content;
-}
-
 function startTabs() {
     let tabsdiv = document.createElement('div');
     tabsdiv.className = "tabs";
@@ -391,7 +385,6 @@ async function imgTest(imgA, imgB) {
     });
 }
 
-
 async function imgsearch(imgschild, ordersclone){
     if(ordersclone.length > 0){
         let ignorelist = [];
@@ -399,7 +392,7 @@ async function imgsearch(imgschild, ordersclone){
             for (let i2 = 0; i2 < ordersclone.length; i2++) {
                 if(ignorelist.indexOf(i2) == -1) {
                     for (let i3 = 0; i3 < ordersclone[i2].imgs.length; i3++) {
-                        let didpass = await imgTest(imgschild[i], base64toBlob(ordersclone[i2].imgs[i3].replace("data:image/webp;base64,","")));
+                        let didpass = await imgTest(imgschild[i], base64toBlob(ordersclone[i2].imgs[i3].split('base64,')[1]));
                         if(didpass){
                             if(ignorelist.indexOf(i2) == -1) {
                                 addTab(unescape(ordersclone[i2].el), ordersclone[i2].title, i2.toString() + i3.toString(), "images");
@@ -437,10 +430,10 @@ async function finalwishliststart(pricetext){
         let mainel = document.getElementsByClassName('product-main-wrap')[0];
         let wishbtn = mainel.getElementsByClassName('add-wishlist');
         if (wishbtn.length > 0) {
-            let imgsall = mainel.getElementsByClassName('images-view-list')[0].childNodes;
             let imgsblob = [];
             let imgschild = [];
             if(UseSideImgs){
+                let imgsall = mainel.getElementsByClassName('images-view-list')[0].childNodes;
                 for (let i4 = 0; i4 < imgsall.length; i4++) {
                     if(UseB64Imgs){
                         let base64Img = await convertImgToBase64URL(imgsall[i4].firstChild.firstChild.src);
@@ -448,7 +441,7 @@ async function finalwishliststart(pricetext){
                         imgsblob.push(base64Img[1]);
                     }
                     else{
-                        imgschild.push(imgsall[i4].firstChild.firstChild.src.replace("_.webp",""));
+                        imgschild.push(imgsall[i4].firstChild.firstChild.src);
                     }
                 }
             }
@@ -461,7 +454,7 @@ async function finalwishliststart(pricetext){
                         imgsblob.push(base64Img[1]);
                     }
                     else{
-                        imgschild.push(imgsall2[i5].firstChild.firstChild.src.replace("_.webp",""));
+                        imgschild.push(imgsall2[i5].firstChild.firstChild.src);
                     }
                 }
             }
@@ -476,7 +469,7 @@ async function finalwishliststart(pricetext){
                 price : pricetext,
                 href: document.location.pathname,
                 imgs: imgschild,
-                el : cloneEl.innerHTML
+                el : cloneEl.innerHTML.replace(/[^\x00-\x7F]/g, "")
             };
             let dupnum = orders.find(x => x.href === document.location.pathname);
             if(!dupnum){
