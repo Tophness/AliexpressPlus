@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Aliexpress Plus 3
+// @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.0.3
+// @version      3.0.4
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -64,30 +64,30 @@ var GM_SuperValue = new function () {
         switch (typeof varValue) {
             case 'undefined':
                 ReportError ('Illegal varValue sent to GM_SuperValue.set().');
-            break;
+                break;
             case 'boolean':
             case 'string':
                 GM_setValue (varName, varValue);
-            break;
+                break;
             case 'number':
                 if (varValue === parseInt (varValue) && Math.abs(varValue) < 2147483647)
                 {
                     GM_setValue (varName, varValue);
                     break;
                 }
-            break;
+                break;
             case 'object':
                 var safeStr = JSON_MarkerStr + JSON.stringify(varValue);
                 GM_setValue (varName, safeStr);
-            break;
+                break;
             case 'function':
                 var safeStr2 = FunctionMarker + varValue.toString();
                 GM_setValue (varName, safeStr);
-            break;
+                break;
 
             default:
                 ReportError ('Unknown type in GM_SuperValue.set()!');
-            break;
+                break;
         }
     }
 
@@ -135,7 +135,7 @@ GM_config.init(
             'sortmethod': {
                 label: 'Search: Sort Mode',
                 type: 'select',
-                options: ['Cheapest Unit Price','Cheapest Total Price','Cheapest Total Price (Max Price)','Cheapest Price','Max Price' ],
+                options: ['Cheapest Unit Price','Cheapest Total Price','Cheapest Total Price (Max Price)','Cheapest Price','Max Price'],
                 default: 'Cheapest Total Price'
             },
             'pagesearch': {
@@ -171,14 +171,14 @@ GM_config.init(
             },
             'similarity': {
                 label: 'Wishlist: Listing Text Search Similarity',
-                type: 'text',
-                default: '0.8'
+                type: 'float',
+                default: 0.8
             },
             'filterNamesFromImgs': {
                 label: 'Wishlist: Remove Results Found In Text Search From Image Search',
                 type: 'checkbox',
                 default: true
-            },
+            }
         }
     }
 );
@@ -189,11 +189,10 @@ var UseSideImgs = GM_config.get('UseB64Imgs');
 var UseInnerHTMLImgs = GM_config.get('UseInnerHTMLImgs');
 var useTextSearch = GM_config.get('useTextSearch');
 var mode = GM_config.get('mode');
-var similarityratio = parseFloat(GM_config.get('similarity'));
+var similarityratio = GM_config.get('similarity');
 var sortmethod = GM_config.fields.sortmethod.settings.options.indexOf(GM_config.get('sortmethod'))+1;
 var pagesearch = GM_config.get('pagesearch');
 
-GM_registerMenuCommand("Configure", () => GM_config.open());
 GM_addStyle(".tabs{overflow:hidden;clear:both;} .tabs ul{list-style-type:none;bottom: -1px;position:relative;} .tabs li{float:left;} .tablist span{cursor: pointer;display:block;padding:5px 10px;text-decoration: none;margin: 0 4px;border-top:1px solid #CCC;border-left:1px solid #DDD;border-right:1px solid #DDD;font:13px/18px verdana,arial,sans-serif;border-bottom:1px solid #CCC;} .tablist span.exact{background-color: red;color: #fff;} .tablist span.containstext{background-color: blue;color: #fff;} .tablist span.relative{background-color: green;color: #fff;} .tablist span.images{background-color: yellow;color: #000;} .tablist span.active{background-color: #eee;color: #000;border-bottom:1px solid #fff;}");
 
 !function(t,e){"object"==typeof exports&&"object"==typeof module?module.exports=e():"function"==typeof define&&define.amd?define([],e):"object"==typeof exports?exports.Rembrandt=e():t.Rembrandt=e()}(this,function(){return function(t){function e(i){if(n[i])return n[i].exports;var r=n[i]={exports:{},id:i,loaded:!1};return t[i].call(r.exports,r,r.exports,e),r.loaded=!0,r.exports}var n={};return e.m=t,e.c=n,e.p="",e(0)}([function(t,e,n){(function(e){"use strict";function i(t){return t&&t.__esModule?t:{"default":t}}function r(t,e){if(!(t instanceof e))throw new TypeError("Cannot call a class as a function")}var o=function(){function t(t,e){for(var n=0;n<e.length;n++){var i=e[n];i.enumerable=i.enumerable||!1,i.configurable=!0,"value"in i&&(i.writable=!0),Object.defineProperty(t,i.key,i)}}return function(e,n,i){return n&&t(e.prototype,n),i&&t(e,i),e}}(),a=n(1),u=(i(a),n(2)),s=i(u),c=n(3),f=i(c),l=n(4),h=i(l),d=n(5),m=i(d),p=n(6),g=i(p),v=n(7),_=i(v);e.Buffer=function(){};var y=function(){function t(e){r(this,t),this._imageA=null,this._imageB=null,this._options=s["default"].defaults(e,{imageA:null,imageB:null,thresholdType:t.THRESHOLD_PERCENT,maxThreshold:.01,maxDelta:20,renderComposition:!1,compositionMaskColor:g["default"].RED,maxOffset:0}),this._validateOptions()}return o(t,[{key:"compare",value:function(){var t=this;return this._loadImages().then(function(){var e=new _["default"](t._imageA,t._imageB,t._options);return e.compare()})}},{key:"_validateOptions",value:function(){var e=this,n=function(t){var n=e._options[t];if(!("string"==typeof n||Buffer.isBuffer(n)||n instanceof m["default"]))throw new Error("Option `"+t+"` must either be a String, Buffer or Rembrandt.Image.")};n("imageA"),n("imageB");var i=this._options,r=i.thresholdType,o=i.threshold,a=i.maxDelta,u=[t.THRESHOLD_PERCENT,t.THRESHOLD_PIXELS];if(u.indexOf(r)===-1)throw new Error("`thresholdType` must be either Rembrandt.THRESHOLD_PERCENT or Rembrandt.THRESHOLD_PIXELS");if(r===t.THRESHOLD_PERCENT&&o<0||o>1)throw new Error("`threshold` must be between 0 and 1");if(a<0||a>255)throw new Error("`maxDelta` must be between 0 and 255")}},{key:"_loadImages",value:function(){var t=this;return this._loadImage(this._options.imageA).then(function(e){return t._imageA=e,t._loadImage(t._options.imageB)}).then(function(e){t._imageB=e})}},{key:"_loadImage",value:function(t){return new f["default"](function(e,n){return t instanceof m["default"]?e(t):t instanceof Buffer?e(m["default"].fromBuffer(t)):void!function(){var n=s["default"].createImage();n.addEventListener("load",function(){e(m["default"].fromImage(n))}),n.crossOrigin="Anonymous",n.src=t}()})}}],[{key:"createImage",value:function(t,e){return new m["default"](t,e)}}]),t}();y.Image=m["default"],y.Color=g["default"],y.version=n(9).version;for(var b in h["default"])y[b]=h["default"][b];t.exports=y}).call(e,function(){return this}())},function(t,e){"use strict"},function(t,e,n){"use strict";function i(t,e){if(!(t instanceof e))throw new TypeError("Cannot call a class as a function")}Object.defineProperty(e,"__esModule",{value:!0});var r=function(){function t(t,e){for(var n=0;n<e.length;n++){var i=e[n];i.enumerable=i.enumerable||!1,i.configurable=!0,"value"in i&&(i.writable=!0),Object.defineProperty(t,i.key,i)}}return function(e,n,i){return n&&t(e.prototype,n),i&&t(e,i),e}}(),o=function(){function t(){i(this,t)}return r(t,null,[{key:"defaults",value:function(t){var e={};for(var n in t)e[n]=t[n];for(var i=arguments.length,r=Array(i>1?i-1:0),o=1;o<i;o++)r[o-1]=arguments[o];for(var a=0;a<r.length;a++){var u=r[a];for(var s in u)"undefined"==typeof e[s]&&(e[s]=u[s])}return e}},{key:"createCanvas",value:function(t,e){var n=void 0;return n=document.createElement("canvas"),n.width=t,n.height=e,n}},{key:"createImage",value:function(){var t=void 0;return t=new window.Image}}]),t}();e["default"]=o},function(t,e,n){var i;(function(r){"use strict";var o="function"==typeof Symbol&&"symbol"==typeof Symbol.iterator?function(t){return typeof t}:function(t){return t&&"function"==typeof Symbol&&t.constructor===Symbol&&t!==Symbol.prototype?"symbol":typeof t};
@@ -341,25 +340,25 @@ function addTab(el, title, tabnum, searchtype){
     tabdiv.innerHTML = el;
 
     if(tnum == 0){
-            taba.classList.add('active');
-            tabdiv.style.display = "block";
+        taba.classList.add('active');
+        tabdiv.style.display = "block";
     }
     else{
-            tabdiv.style.display = "none";
+        tabdiv.style.display = "none";
     }
     taba.addEventListener('click', function(e) {
         let tab_lists_anchors = document.querySelectorAll(".tablist li span");
         let divs = document.getElementById('tabdiv').childNodes;
-            for (let i = 0; i < divs.length; i++) {
-                divs[i].style.display = "none";
-            }
-            for (let i = 0; i < tab_lists_anchors.length; i++) {
-                tab_lists_anchors[i].classList.remove("active");
-            }
-            let clicked_tab = e.target || e.srcElement;
-            clicked_tab.classList.add('active');
+        for (let i = 0; i < divs.length; i++) {
+            divs[i].style.display = "none";
+        }
+        for (let i = 0; i < tab_lists_anchors.length; i++) {
+            tab_lists_anchors[i].classList.remove("active");
+        }
+        let clicked_tab = e.target || e.srcElement;
+        clicked_tab.classList.add('active');
 
-            document.getElementById('tabdiv').querySelector(clicked_tab.getAttribute('id')).style.display = "block";
+        document.getElementById('tabdiv').querySelector(clicked_tab.getAttribute('id')).style.display = "block";
     });
 
     li.appendChild(taba);
@@ -485,12 +484,19 @@ async function finalwishliststart(pricetext){
             if (orders) {
                 let wishb = document.createElement('div');
                 let title = document.createElement('h2');
-                title.class = 'ui-box-title';
+                title.id = 'ui-box-title';
                 title.innerHTML = 'Similar Wishlist Items';
+                title.style = "cursor: pointer";
+                title.addEventListener('click', function(e){
+                    let clicked = e.target || e.srcElement;
+                    clicked.classList.add('active');
+                });
                 wishb.id = 'wishlist-tbody';
                 wishb.setAttribute('style', 'align:top;position:absolute;width:18%');
                 document.getElementById('header').appendChild(title);
                 document.getElementById('header').appendChild(wishb);
+                waitForEl3();
+                GM_registerMenuCommand("Configure", function (){document.querySelector("#ui-box-title").className = "active";});
                 startTabs();
                 if(useTextSearch){
                     let toignore = await search(neworder.title.toLowerCase());
@@ -909,6 +915,20 @@ function waitForEl2(){
     });
 }
 
+function waitForEl3(){
+    var observerb = new MutationObserver(function (mutation) {
+        if(mutation[0].target.className == 'active') {
+            GM_config.open();
+            mutation[0].target.className = '';
+            return;
+        }
+    });
+
+    observerb.observe(document.querySelector("#ui-box-title"), {
+        attributes: true
+    });
+}
+
 function fakeScrollDown(){
     setTimeout((function(){
         window.scrollByPages(1);;
@@ -1008,7 +1028,21 @@ function getshippingdates(){
     }
 }
 
+function injecthiddencftrigger(){
+    let title = document.createElement('input');
+    title.type = 'hidden';
+    title.id = 'ui-box-title';
+    title.addEventListener('click', function(e){
+        let clicked = e.target || e.srcElement;
+        clicked.classList.add('active');
+    });
+    document.body.appendChild(title);
+    waitForEl3();
+    GM_registerMenuCommand("Configure", function (){document.querySelector("#ui-box-title").className = "active";});
+}
+
 if(document.location.href.indexOf('/wholesale') != -1 || document.location.href.indexOf('/category') != -1 || document.location.href.indexOf('/af') != -1){
+    injecthiddencftrigger();
     waitForEl();
     let allitems = document.querySelectorAll("div.product-container > div + div > a");
     if(allitems.length > 0){
