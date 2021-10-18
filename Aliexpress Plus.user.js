@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.0.4
+// @version      3.0.5
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -254,6 +254,18 @@ GM_addStyle(".tabs{overflow:hidden;clear:both;} .tabs ul{list-style-type:none;bo
     };
 })();
 
+if (typeof String.prototype.startsWith != 'function') {
+    String.prototype.startsWith = function (str) {
+        return this.slice(0, str.length) == str;
+    };
+}
+
+if (typeof String.prototype.endsWith != 'function') {
+    String.prototype.endsWith = function (str) {
+        return this.slice(-str.length) == str;
+    };
+}
+
 function lookup(arr) {
     let newarr = [];
     for (let i = 0; i < arr.length; i++) {
@@ -405,10 +417,10 @@ async function imgsearch(imgschild, ordersclone){
     }
 }
 
-const base64toBlob = function(data) {
+function base64toBlob(data) {
     let out = Uint8Array.from(atob(data), c => c.charCodeAt(0));
     return URL.createObjectURL(new Blob([out], { type: 'image/png' }));
-};
+}
 
 function convertImgToBase64URL(url){
     return fetch(url)
@@ -530,48 +542,11 @@ async function finalwishliststart(pricetext){
     }
 }
 
-if (typeof String.prototype.startsWith != 'function') {
-    String.prototype.startsWith = function (str) {
-        return this.slice(0, str.length) == str;
-    };
-}
-
-if (typeof String.prototype.endsWith != 'function') {
-    String.prototype.endsWith = function (str) {
-        return this.slice(-str.length) == str;
-    };
-}
-
 function formatPrice(text){
     return [text.substring(0, text.indexOf('$') + 1), parseFloat(text.substring(text.indexOf('$') + 1))];
 }
 
 function findPrice(listitem){
-    let pricerow = listitem.querySelector('div:nth-child(3) > div > div');
-    if(pricerow){
-        if(pricerow.innerHTML.substring(3).startsWith('$') && pricerow.className != 'total-current'){
-            return formatPrice(pricerow.innerText).concat(pricerow);
-        }
-        else{
-            let alldivs = listitem.querySelectorAll("div > div");
-            for (let i = 0; i < alldivs.length; i++) {
-                if(alldivs[i].innerHTML.substring(3).startsWith('$') && pricerow.className != 'total-current'){
-                    return formatPrice(alldivs[i].innerText).concat(alldivs[i]);
-                }
-            }
-        }
-    }
-    else{
-        let alldivs = listitem.querySelectorAll("div > div");
-        for (let i = 0; i < alldivs.length; i++) {
-            if(alldivs[i].innerHTML.substring(3).startsWith('$') && pricerow.className != 'total-current'){
-                return formatPrice(alldivs[i].innerText).concat(alldivs[i]);
-            }
-        }
-    }
-}
-
-function findPrice2(listitem){
     if(itemstype == 1){
         let pricerow = listitem.querySelector('div:nth-child(3) > div > div');
         if(pricerow){
@@ -710,7 +685,7 @@ async function findShipping(listitem){
 
 async function process(listitem){
     if(listitem.getElementsByClassName('item-total-wrap').length <= 0){
-        let price = findPrice2(listitem);
+        let price = findPrice(listitem);
         if(price){
             let shipping = await findShipping(listitem);
             let totalPrice = price[1];
