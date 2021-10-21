@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.0.5
+// @version      3.1.5
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -14,20 +14,18 @@
 // @require      https://openuserjs.org/src/libs/sizzle/GM_config.min.js
 // @updateURL    https://openuserjs.org/meta/Tophness/Aliexpress_Plus.meta.js
 // @downloadURL  https://openuserjs.org/install/Tophness/Aliexpress_Plus.user.js
-// @copyright    2014, Tophness (https://openuserjs.org/users/Tophness)
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @grant        GM_xmlhttpRequest
-// @connet       self
-// @connet       *.aliexpress.com
-// @license      MIT
 // @run-at       document-idle
+// @license      MIT
+// @copyright    2014, Tophness (https://openuserjs.org/users/Tophness)
 // ==/UserScript==
 
-var sortingnow = false;
 var tnum = 0;
+var sortingnow = false;
 var itemstype = 2;
 
 var GM_SuperValue = new function () {
@@ -132,14 +130,25 @@ GM_config.init(
         'id': 'Config',
         title: 'Configure',
         'fields': {
-            'sortmethod': {
+            'sortmode': {
                 label: 'Search: Sort Mode',
                 type: 'select',
-                options: ['Cheapest Unit Price','Cheapest Total Price','Cheapest Total Price (Max Price)','Cheapest Price','Max Price'],
+                options: [ 'Cheapest Unit Price', 'Cheapest Total Price', 'Cheapest Total Price (Max Price)', 'Cheapest Price', 'Max Price' ],
                 default: 'Cheapest Total Price'
             },
             'pagesearch': {
                 label: 'Search: Open pages and scrape shipping details if missing from search',
+                type: 'checkbox',
+                default: true
+            },
+            'windowmode': {
+                label: 'Search: Item Scraping Mode',
+                type: 'select',
+                options: [ 'unSafeWindow', 'DOM' ],
+                default: 'unSafeWindow'
+            },
+            'getextraitems': {
+                label: 'Search: Get Extra Items In unSafeWindow Mode',
                 type: 'checkbox',
                 default: true
             },
@@ -182,16 +191,19 @@ GM_config.init(
         }
     }
 );
+
 var orders = GM_SuperValue.get('wishdata', []);
 var filterNamesFromImgs = GM_config.get('filterNamesFromImgs');
 var UseB64Imgs = GM_config.get('UseB64Imgs');
-var UseSideImgs = GM_config.get('UseB64Imgs');
+var UseSideImgs = GM_config.get('UseSideImgs');
 var UseInnerHTMLImgs = GM_config.get('UseInnerHTMLImgs');
 var useTextSearch = GM_config.get('useTextSearch');
 var mode = GM_config.get('mode');
 var similarityratio = GM_config.get('similarity');
-var sortmethod = GM_config.fields.sortmethod.settings.options.indexOf(GM_config.get('sortmethod'))+1;
+var sortmethod = GM_config.fields.sortmode.settings.options.indexOf(GM_config.get('sortmode'))+1;
 var pagesearch = GM_config.get('pagesearch');
+var unsafewindowmode = GM_config.fields.windowmode.settings.options.indexOf(GM_config.get('windowmode'))+1;
+var getextraitems = GM_config.get('getextraitems');
 
 GM_addStyle(".tabs{overflow:hidden;clear:both;} .tabs ul{list-style-type:none;bottom: -1px;position:relative;} .tabs li{float:left;} .tablist span{cursor: pointer;display:block;padding:5px 10px;text-decoration: none;margin: 0 4px;border-top:1px solid #CCC;border-left:1px solid #DDD;border-right:1px solid #DDD;font:13px/18px verdana,arial,sans-serif;border-bottom:1px solid #CCC;} .tablist span.exact{background-color: red;color: #fff;} .tablist span.containstext{background-color: blue;color: #fff;} .tablist span.relative{background-color: green;color: #fff;} .tablist span.images{background-color: yellow;color: #000;} .tablist span.active{background-color: #eee;color: #000;border-bottom:1px solid #fff;}");
 
@@ -444,28 +456,32 @@ async function finalwishliststart(pricetext){
             let imgsblob = [];
             let imgschild = [];
             if(UseSideImgs){
-                let imgsall = mainel.getElementsByClassName('images-view-list')[0].childNodes;
-                for (let i4 = 0; i4 < imgsall.length; i4++) {
-                    if(UseB64Imgs){
-                        let base64Img = await convertImgToBase64URL(imgsall[i4].firstChild.firstChild.src);
-                        imgschild.push(base64Img[0]);
-                        imgsblob.push(base64Img[1]);
-                    }
-                    else{
-                        imgschild.push(imgsall[i4].firstChild.firstChild.src);
+                if(mainel.getElementsByClassName('images-view-list').length > 0){
+                    let imgsall = mainel.getElementsByClassName('images-view-list')[0].childNodes;
+                    for (let i4 = 0; i4 < imgsall.length; i4++) {
+                        if(UseB64Imgs){
+                            let base64Img = await convertImgToBase64URL(imgsall[i4].firstChild.firstChild.src);
+                            imgschild.push(base64Img[0]);
+                            imgsblob.push(base64Img[1]);
+                        }
+                        else{
+                            imgschild.push(imgsall[i4].firstChild.firstChild.src);
+                        }
                     }
                 }
             }
             if(UseInnerHTMLImgs){
-                let imgsall2 = mainel.getElementsByClassName('sku-property-list')[0].childNodes;
-                for (let i5 = 0; i5 < imgsall2.length; i5++) {
-                    if(UseB64Imgs){
-                        let base64Img = await convertImgToBase64URL(imgsall2[i5].firstChild.firstChild.src);
-                        imgschild.push(base64Img[0]);
-                        imgsblob.push(base64Img[1]);
-                    }
-                    else{
-                        imgschild.push(imgsall2[i5].firstChild.firstChild.src);
+                if(mainel.getElementsByClassName('sku-property-list').length > 0){
+                    let imgsall2 = mainel.getElementsByClassName('sku-property-list')[0].childNodes;
+                    for (let i5 = 0; i5 < imgsall2.length; i5++) {
+                        if(UseB64Imgs){
+                            let base64Img = await convertImgToBase64URL(imgsall2[i5].firstChild.firstChild.src);
+                            imgschild.push(base64Img[0]);
+                            imgsblob.push(base64Img[1]);
+                        }
+                        else{
+                            imgschild.push(imgsall2[i5].firstChild.firstChild.src);
+                        }
                     }
                 }
             }
@@ -542,6 +558,39 @@ async function finalwishliststart(pricetext){
     }
 }
 
+function formatPageShipping(text){
+    text = text.substring(text.indexOf('window.runParams = {'));
+    text = text.substring(text.indexOf('data: {')+6);
+    text = text.substring(0, text.indexOf('csrfToken'));
+    text = text.substring(0, text.lastIndexOf(','));
+    try{
+        if(text.length > 0){
+            return parseFloat(JSON.parse(text).shippingModule.freightCalculateInfo.freight.freightAmount.value);
+        }
+        else{
+            return(0);
+        }
+    }
+    catch(e){
+        console.log(e);
+        pagesearch = false;
+        GM_config.set('pagesearch', false);
+        return(0);
+    }
+}
+
+async function getPageShipping(url){
+    return new Promise((response) => {
+        GM_xmlhttpRequest ( {
+            method:     'GET',
+            url:        url,
+            onload:     function (responseDetails) {
+                response(formatPageShipping(responseDetails.responseText));
+            }
+        } );
+    });
+}
+
 function formatPrice(text){
     return [text.substring(0, text.indexOf('$') + 1), parseFloat(text.substring(text.indexOf('$') + 1))];
 }
@@ -599,34 +648,6 @@ function findPrice(listitem){
         }
     }
 }
-
-function formatPageShipping(text){
-    text = text.substring(text.indexOf('window.runParams = {'));
-    text = text.substring(text.indexOf('data: {')+6);
-    text = text.substring(0, text.indexOf('csrfToken'));
-    text = text.substring(0, text.lastIndexOf(','));
-    try{
-        return parseFloat(JSON.parse(text).shippingModule.freightCalculateInfo.freight.freightAmount.value);
-    }
-    catch(e){
-        console.log(e);
-        pagesearch = false;
-        GM_config.set('pagesearch', false);
-    }
-}
-
-async function getPageShipping(url){
-    return new Promise((response) => {
-        GM_xmlhttpRequest ( {
-            method:     'GET',
-            url:        url,
-            onload:     function (responseDetails) {
-                response(formatPageShipping(responseDetails.responseText));
-            }
-        } );
-    });
-}
-
 
 function formatShipping(text){
     if(text.innerHTML.startsWith('+ Shipping')){
@@ -710,16 +731,11 @@ async function process(listitem){
             price[2].style = "display: table-row;";
             price[2].parentNode.appendChild(finalcostdiv);
         }
-        if(itemstype == 1){
-            sortall(document.querySelectorAll("div.product-container > div + div > div"));
-        }
-        else{
-            sortall(document.querySelectorAll("div.product-container > div + div > a"));
-        }
+        SortRows(sortmethod);
     }
 }
 
-var observer = new MutationObserver(function(mutations) {
+var observer = new MutationObserver(function(mutations, me) {
     if(!sortingnow){
         mutations.forEach(function(mutation) {
             if(mutation.type == 'childList'){
@@ -729,18 +745,16 @@ var observer = new MutationObserver(function(mutations) {
             }
         });
     }
+    else{
+        me.disconnect();
+    }
 });
 
 function waitForEl(){
     var observera = new MutationObserver(function (mutations, me) {
         if(document.querySelector("div.product-container > div + div")) {
             me.disconnect();
-            if(document.location.href.indexOf('g=y') == -1){
-                observer.observe(document.querySelector("div.product-container > div + div"), { childList: true, subtree: true });
-            }
-            else{
-                observer.observe(document.querySelector("div.product-container > div + div"), { childList: true });
-            }
+            observer.observe(document.querySelector("div.product-container > div + div"), { childList: true });
             return;
         }
     });
@@ -757,8 +771,343 @@ function processall(list){
     }
 }
 
-async function sortall(listitems){
-    sortingnow = true;
+function createItem(link, imgsrc, title, storename, storelink, currencycode, price, shipping, itemstype2, extraitems) {
+    var container = document.createDocumentFragment();
+    if(itemstype2 == 1){
+        let e_1 = document.createElement("div");
+        e_1.setAttribute("class", "_1OUGS");
+        let e_2 = document.createElement("a");
+        e_2.setAttribute("class", "_9tla3");
+        e_2.setAttribute("href", link);
+        e_2.setAttribute("target", "_blank");
+        let e_3 = document.createElement("img");
+        e_3.setAttribute("src", imgsrc);
+        e_3.setAttribute("class", "A3Q1M");
+        e_3.setAttribute("alt", title);
+        e_2.appendChild(e_3);
+        let e_4 = document.createElement("div");
+        let e_5 = document.createElement("div");
+        e_5.setAttribute("class", "report-btn-wrap");
+        let e_6 = document.createElement("span");
+        e_6.setAttribute("class", "report-item");
+        e_6.setAttribute("title", "Report fraud item");
+        e_5.appendChild(e_6);
+        e_4.appendChild(e_5);
+        e_2.appendChild(e_4);
+        e_1.appendChild(e_2);
+        let e_7 = document.createElement("div");
+        e_7.setAttribute("class", "atwl-btn-wrap");
+        let e_8 = document.createElement("a");
+        e_8.setAttribute("class", "_9tla3");
+        e_8.setAttribute("href", link);
+        e_8.setAttribute("target", "_blank");
+        e_7.appendChild(e_8);
+        let e_9 = document.createElement("a");
+        e_9.setAttribute("class", "add-wishlist-btn");
+        e_9.setAttribute("data-p4p", "true");
+        let e_10 = document.createElement("i");
+        e_10.setAttribute("data-p4p", "true");
+        e_10.setAttribute("class", "next-icon next-icon-favourite next-medium");
+        e_9.appendChild(e_10);
+        e_7.appendChild(e_9);
+        e_1.appendChild(e_7);
+        let e_11 = document.createElement("div");
+        e_11.setAttribute("class", "_3L3yc");
+        let e_12 = document.createElement("div");
+        e_12.setAttribute("class", "_2mXVg _89Qo8");
+        let e_13 = document.createElement("a");
+        e_13.setAttribute("class", "awV9E");
+        e_13.setAttribute("target", "_blank");
+        e_13.setAttribute("title", title);
+        e_13.setAttribute("href", link);
+        let e_14 = document.createElement("span");
+        e_14.appendChild(document.createTextNode(title));
+        e_13.appendChild(e_14);
+        e_12.appendChild(e_13);
+        e_11.appendChild(e_12);
+        let e_15 = document.createElement("div");
+        e_15.setAttribute("class", "_2mXVg");
+        e_15.setAttribute("data-spm-anchor-id", "a2g0o.productlist.0.i9.356c179eF6Srjn");
+        let pricepretext = document.createElement("span");
+        pricepretext.setAttribute("class", "pricepretext");
+        pricepretext.appendChild(document.createTextNode(currencycode + " $"));
+        e_15.appendChild(pricepretext);
+        let e_16 = document.createElement("span");
+        e_16.setAttribute("class", "price-current");
+        e_16.appendChild(document.createTextNode(price));
+        e_15.appendChild(e_16);
+        e_11.appendChild(e_15);
+        let e_17 = document.createElement("div");
+        e_17.setAttribute("class", "_2mXVg VoRWN");
+        e_11.appendChild(e_17);
+        let e_18 = document.createElement("div");
+        e_18.setAttribute("class", "_2mXVg");
+        let e_19 = document.createElement("span");
+        e_19.setAttribute("class", "ZCLbI");
+        e_11.appendChild(e_18);
+        if(shipping == 0){
+            e_19.appendChild(document.createTextNode("Free Shipping"));
+        }
+        else{
+            e_19.appendChild(document.createTextNode("+ Shipping: " + currencycode + " $" + shipping));
+        }
+        e_18.appendChild(e_19);
+        if(extraitems){
+            for (let i = 0; i < extraitems.length; i++) {
+                let extraitem = document.createElement("span");
+                extraitem.setAttribute("class", "ZCLbI");
+                extraitem.appendChild(document.createTextNode(extraitems[i]));
+                e_11.appendChild(extraitem);
+            }
+        }
+        let e_21 = document.createElement("div");
+        e_21.setAttribute("class", "_1iaNr");
+        e_11.appendChild(e_21);
+        let totaldiv = document.createElement("div");
+        totaldiv.setAttribute("class", "_2mXVg");
+        let pretext = document.createElement("span");
+        pretext.appendChild(document.createTextNode("Total: " + currencycode + " $"));
+        pretext.setAttribute("class", "total-current _12A8D");
+        let e_20 = document.createElement("span");
+        e_20.setAttribute("class", "total-current _12A8D");
+        e_20.appendChild(document.createTextNode((parseFloat(price) + parseFloat(shipping)).toFixed(2).toString()));
+        pretext.appendChild(e_20);
+        totaldiv.appendChild(pretext);
+        e_11.appendChild(totaldiv);
+        let e_22 = document.createElement("div");
+        e_22.setAttribute("class", "_2mXVg");
+        let e_23 = document.createElement("span");
+        e_23.setAttribute("class", "_2jR_A");
+        let e_24 = document.createElement("a");
+        e_24.setAttribute("class", "_2lsU7");
+        e_24.setAttribute("href", storelink);
+        e_24.setAttribute("target", "_blank");
+        e_24.appendChild(document.createTextNode(storename));
+        e_23.appendChild(e_24);
+        e_22.appendChild(e_23);
+        e_11.appendChild(e_22);
+        e_1.appendChild(e_11);
+        container.appendChild(e_1);
+    }
+    else{
+        let e_0 = document.createElement("div");
+        e_0.setAttribute("class", "_2E_KG");
+        let e_1 = document.createElement("a");
+        e_1.setAttribute("class", "_9tla3");
+        e_1.setAttribute("href", link);
+        e_1.setAttribute("target", "_blank");
+        let e_2 = document.createElement("img");
+        e_2.setAttribute("src", imgsrc);
+        e_2.setAttribute("class", "A3Q1M");
+        e_2.setAttribute("alt", title);
+        e_1.appendChild(e_2);
+        let e_3 = document.createElement("div");
+        let e_4 = document.createElement("div");
+        e_4.setAttribute("class", "report-btn-wrap");
+        let e_5 = document.createElement("span");
+        e_5.setAttribute("class", "report-item");
+        e_5.setAttribute("title", "Report fraud item");
+        e_4.appendChild(e_5);
+        e_3.appendChild(e_4);
+        e_1.appendChild(e_3);
+        e_0.appendChild(e_1);
+        let e_6 = document.createElement("div");
+        e_6.setAttribute("class", "atwl-btn-wrap");
+        let e_7 = document.createElement("a");
+        e_7.setAttribute("class", "_9tla3");
+        e_7.setAttribute("href", link);
+        e_7.setAttribute("target", "_blank");
+        e_6.appendChild(e_7);
+        let e_8 = document.createElement("a");
+        e_8.setAttribute("class", "add-wishlist-btn");
+        e_8.setAttribute("data-p4p", "true");
+        let e_9 = document.createElement("i");
+        e_9.setAttribute("data-p4p", "true");
+        e_9.setAttribute("class", "next-icon next-icon-favourite next-medium");
+        e_8.appendChild(e_9);
+        e_6.appendChild(e_8);
+        e_0.appendChild(e_6);
+        let e_10 = document.createElement("div");
+        e_10.setAttribute("class", "_2mXVg _3GzBz");
+        let e_11 = document.createElement("div");
+        e_11.setAttribute("class", "_2mXVg _89Qo8");
+        let e_12 = document.createElement("a");
+        e_12.setAttribute("class", "awV9E");
+        e_12.setAttribute("target", "_blank");
+        e_12.setAttribute("title", title);
+        e_12.setAttribute("href", link);
+        e_12.setAttribute("data-spm-anchor-id", "a2g0o.productlist.0.0");
+        let e_13 = document.createElement("span");
+        e_13.setAttribute("data-spm-anchor-id", "a2g0o.productlist.0.i8.7f62179etN8cvA");
+        e_13.appendChild(document.createTextNode(title));
+        e_12.appendChild(e_13);
+        e_11.appendChild(e_12);
+        e_10.appendChild(e_11);
+        let e_14 = document.createElement("div");
+        e_14.setAttribute("class", "_2mXVg VoRWN");
+        e_10.appendChild(e_14);
+        let e_15 = document.createElement("div");
+        e_15.setAttribute("class", "_2mXVg");
+        let pricepretext = document.createElement("span");
+        pricepretext.setAttribute("class", "pricepretext");
+        pricepretext.appendChild(document.createTextNode(currencycode + " $"));
+        e_15.appendChild(pricepretext);
+        let e_16 = document.createElement("span");
+        e_16.setAttribute("class", "price-current");
+        e_16.appendChild(document.createTextNode(price));
+        e_15.appendChild(e_16);
+        e_10.appendChild(e_15);
+        let e_17 = document.createElement("span");
+        e_17.setAttribute("class", "ZCLbI");
+        if(shipping == 0){
+            e_17.appendChild(document.createTextNode("Free Shipping"));
+        }
+        else{
+            e_17.appendChild(document.createTextNode("+ Shipping: " + currencycode + " $" + shipping));
+        }
+        e_10.appendChild(e_17);
+        if(extraitems){
+            for (let i = 0; i < extraitems.length; i++) {
+                let extraitem = document.createElement("span");
+                extraitem.setAttribute("class", "ZCLbI");
+                extraitem.appendChild(document.createTextNode(extraitems[i]));
+                e_10.appendChild(extraitem);
+            }
+        }
+        let e_18 = document.createElement("div");
+        e_18.setAttribute("class", "_1iaNr");
+        e_10.appendChild(e_18);
+        let e_19 = document.createElement("span");
+        e_19.setAttribute("class", "_2jR_A");
+        let e_20 = document.createElement("a");
+        e_20.setAttribute("class", "_2lsU7");
+        e_20.setAttribute("href", storelink);
+        e_20.setAttribute("target", "_blank");
+        e_20.appendChild(document.createTextNode(storename));
+        e_19.appendChild(e_20);
+        e_10.appendChild(e_19);
+        e_0.appendChild(e_10);
+        let e_21 = document.createElement("div");
+        e_21.setAttribute("class", "_2mXVg BAu5c");
+        let e_22 = document.createElement("div");
+        e_22.setAttribute("class", "_2mXVg");
+        let pretext = document.createElement("span");
+        pretext.setAttribute("class", "_12A8D");
+        pretext.appendChild(document.createTextNode("Total: " + currencycode + " $"));
+        let e_23 = document.createElement("span");
+        e_23.setAttribute("class", "total-current _12A8D");
+        e_23.appendChild(document.createTextNode((parseFloat(price) + parseFloat(shipping)).toFixed(2).toString()));
+        e_22.appendChild(pretext);
+        e_22.appendChild(e_23);
+        e_21.appendChild(e_22);
+        let e_24 = document.createElement("div");
+        e_24.setAttribute("class", "_1iaNr");
+        e_21.appendChild(e_24);
+        e_0.appendChild(e_21);
+        container.appendChild(e_0);
+    }
+    return container;
+}
+
+async function findShipping2(sellingpoints, link){
+    if(sellingpoints){
+        for (let i = 0; i < sellingpoints.length; i++) {
+            if(sellingpoints[i].tagContent && sellingpoints[i].tagContent.tagText){
+                if(sellingpoints[i].tagContent.tagText.indexOf("+ Shipping") != -1){
+                    return parseFloat(sellingpoints[i].tagContent.tagText.substring(sellingpoints[i].tagContent.tagText.indexOf('$') + 1));
+                }
+                else if(sellingpoints[i].tagContent.tagText.indexOf("Free Shipping") != -1){
+                    return 0;
+                }
+            }
+        }
+    }
+    if(pagesearch){
+        return await getPageShipping(link);
+    }
+    else{
+        return 0;
+    }
+}
+
+async function findExtras(sellingpoints){
+    let extraitems = []
+    if(sellingpoints){
+        for (let i = 0; i < sellingpoints.length; i++) {
+            if(sellingpoints[i].tagContent && sellingpoints[i].tagContent.tagText){
+                if(sellingpoints[i].tagContent.tagText.indexOf("+ Shipping") == -1 && sellingpoints[i].tagContent.tagText.indexOf("Free Shipping") == -1){
+                    extraitems.push(sellingpoints[i].tagContent.tagText);
+                }
+            }
+        }
+    }
+    return extraitems;
+}
+
+function removeall(items, parent){
+    for (let i = 0; i < items.length; i++) {
+        parent.removeChild(items[i]);
+    }
+}
+
+function appendall(items, parent){
+    for (let i = 0; i < items.length; i++) {
+        parent.appendChild(items[i]);
+    }
+}
+
+async function waitforparams(){
+    return new Promise((params) => {
+        if(unsafeWindow.runParams){
+            params(unsafeWindow.runParams);
+        }
+        else{
+            setTimeout(waitforparams, 500);
+        }
+    });
+}
+
+async function getParams(){
+    return new Promise((params) => {
+        let retparams = waitforparams();
+        params(retparams);
+    });
+}
+
+async function processall3(){
+    let runparams = await getParams();
+    let allitems = runparams.mods.itemList.content;
+    let currencycode = runparams.exposureParams.ship_to;
+    let newitems = [];
+    let itemstype2 = 1;
+    if(document.location.href.indexOf('g=n') != -1){
+        itemstype2 = 2;
+    }
+    for (let i = 0; i < allitems.length; i++) {
+        let link = allitems[i].productDetailUrl, imgsrc = allitems[i].image.imgUrl, title = allitems[i].title.displayTitle, storename = allitems[i].store.storeName, storelink = allitems[i].store.storeUrl, price = allitems[i].prices.salePrice.minPrice, shipping = await findShipping2(allitems[i].sellingPoints, link);
+        let extraitems = [];
+        if(getextraitems){
+            extraitems = await findExtras(allitems[i].sellingPoints);
+        }
+        newitems.push(createItem(link, imgsrc, title, storename, storelink, currencycode, price, shipping, itemstype2, extraitems));
+    }
+    let metaparent = document.querySelector("div.product-container > div");
+    let parent = document.querySelector("div.product-container > div + div");
+    let oldclassname = parent.className;
+    parent.parentNode.removeChild(parent);
+    let newparent = document.createElement("div");
+    newparent.id = "listitems";
+    newparent.className = oldclassname;
+    appendall(newitems, newparent);
+    metaparent.appendChild(newparent);
+    SortRows(sortmethod);
+}
+
+async function sortall(listitems, sortmethod){
+    if(unsafewindowmode == 1){
+        sortingnow = true;
+        observer.disconnect();
+    }
     if(sortmethod == 1){
         await tinysort(listitems,{selector:'span.total-current', natural:true});
     }
@@ -774,19 +1123,27 @@ async function sortall(listitems){
     else if(sortmethod == 5){
         await tinysort(listitems,{selector:'span.price-current', natural:true, order: 'desc'});
     }
-    sortingnow = false;
+    if(unsafewindowmode == 1){
+        sortingnow = false;
+        observer.observe(document.querySelector("div.product-container > div + div"), { childList: true });
+    }
 }
 
-function SortRows(mode){
-    sortmethod = mode;
-    if(itemstype == 1){
-        sortall(document.querySelectorAll("div.product-container > div + div > div"));
+function SortRows(sortmethod){
+    if(unsafewindowmode == 1){
+        sortall(document.querySelector("#listitems").childNodes,sortmethod);
     }
     else{
-        sortall(document.querySelectorAll("div.product-container > div + div > a"));
+        if(itemstype == 1){
+            sortall(document.querySelectorAll("div.product-container > div + div > div"),sortmethod);
+        }
+        else{
+            sortall(document.querySelectorAll("div.product-container > div + div > a"),sortmethod);
+        }
+        fakeScrollDown();
     }
-    fakeScrollDown();
 }
+
 function insertsearch(){
     var sortdiv = document.createElement('div');
     sortdiv.className = 'sort-item';
@@ -802,35 +1159,35 @@ function insertsearch(){
     sortspan5.className = 'sort-item';
     var sortchange = document.createElement('div');
     sortchange.id = 'sortchange1';
-    sortchange.innerHTML = GM_config.fields.sortmethod.settings.options[0];
+    sortchange.innerHTML = GM_config.fields.sortmode.settings.options[0].toString();
     sortchange.addEventListener("click", function () {
-        SortRows(0)
+        SortRows(1);
     }, false);
     var sortchange2 = document.createElement('div');
     sortchange2.id = 'sortchange2';
-    sortchange2.innerHTML = GM_config.fields.sortmethod.settings.options[1];
+    sortchange2.innerHTML = GM_config.fields.sortmode.settings.options[1].toString();
     sortchange2.addEventListener("click", function () {
-        SortRows(1)
+        SortRows(2);
     }, false);
     var sortchange3 = document.createElement('div');
     sortchange3.id = 'sortchange3';
-    sortchange3.innerHTML = GM_config.fields.sortmethod.settings.options[2];
+    sortchange3.innerHTML = GM_config.fields.sortmode.settings.options[2].toString();
     sortchange3.addEventListener("click", function () {
-        SortRows(2)
+        SortRows(3);
     }, false);
     var sortchange4 = document.createElement('div');
     sortchange4.id = 'sortchange4';
-    sortchange4.innerHTML = GM_config.fields.sortmethod.settings.options[3];
+    sortchange4.innerHTML = GM_config.fields.sortmode.settings.options[3].toString();
     sortchange4.addEventListener("click", function () {
-        SortRows(3)
+        SortRows(4);
     }, false);
     var sortchange5 = document.createElement('label');
     sortchange5.id = 'sortchange5';
-    sortchange5.innerHTML = GM_config.fields.sortmethod.settings.options[4] + ': ';
+    sortchange5.innerHTML = GM_config.fields.sortmode.settings.options[4].toString() + ': ';
     var sortchange5t = document.createElement('input');
     sortchange5t.id = 'sortchange5t';
     sortchange5t.addEventListener("keydown", function () {
-        SortRows(4)
+        SortRows(5);
     }, false);
     sortspan.appendChild(sortchange);
     sortspan2.appendChild(sortchange2);
@@ -887,20 +1244,6 @@ function waitForEl2(){
     observerb.observe(document, {
         childList: true,
         subtree: true
-    });
-}
-
-function waitForEl3(){
-    var observerb = new MutationObserver(function (mutation) {
-        if(mutation[0].target.className == 'active') {
-            GM_config.open();
-            mutation[0].target.className = '';
-            return;
-        }
-    });
-
-    observerb.observe(document.querySelector("#ui-box-title"), {
-        attributes: true
     });
 }
 
@@ -1003,33 +1346,57 @@ function getshippingdates(){
     }
 }
 
-function injecthiddencftrigger(){
-    let title = document.createElement('input');
-    title.type = 'hidden';
-    title.id = 'ui-box-title';
-    title.addEventListener('click', function(e){
-        let clicked = e.target || e.srcElement;
-        clicked.classList.add('active');
+function waitForEl3(){
+    var observerc = new MutationObserver(function (mutation) {
+        if(mutation[0].target.className == 'active') {
+            GM_config.open();
+            mutation[0].target.className = '';
+            return;
+        }
     });
-    document.body.appendChild(title);
-    waitForEl3();
-    GM_registerMenuCommand("Configure", function (){document.querySelector("#ui-box-title").className = "active";});
+
+    observerc.observe(document.querySelector("#ui-box-title"), {
+        attributes: true
+    });
+}
+
+function injecthiddencftrigger(){
+    if(document.getElementsByClassName('sort').length > 0){
+        let titlediv = document.createElement('div');
+        let titletext = document.createElement('span');
+        titletext.id = 'ui-box-title';
+        titletext.style = 'font-weight: bold; cursor: pointer; padding-left: 20px';
+        titletext.innerHTML = 'Configure Aliexpress Plus';
+        titletext.addEventListener('click', function(e){
+            let clicked = e.target || e.srcElement;
+            clicked.classList.add('active');
+        });
+        titlediv.appendChild(titletext);
+        document.getElementsByClassName('sort')[0].firstChild.appendChild(titlediv);
+        waitForEl3();
+        GM_registerMenuCommand("Configure", function (){document.querySelector("#ui-box-title").className = "active";});
+    }
 }
 
 if(document.location.href.indexOf('/wholesale') != -1 || document.location.href.indexOf('/category') != -1 || document.location.href.indexOf('/af') != -1){
     injecthiddencftrigger();
-    waitForEl();
-    let allitems = document.querySelectorAll("div.product-container > div + div > a");
-    if(allitems.length > 0){
-        processall(allitems);
+    if(unsafewindowmode == 1){
+        processall3();
     }
     else{
-        itemstype = 1;
-        allitems = document.querySelectorAll("div.product-container > div + div > div");
-        processall(allitems);
+        waitForEl();
+        let allitems = document.querySelectorAll("div.product-container > div + div > a");
+        if(allitems.length > 0){
+            processall(allitems);
+        }
+        else{
+            itemstype = 1;
+            allitems = document.querySelectorAll("div.product-container > div + div > div");
+            processall(allitems);
+        }
+        fakeScrollDown();
     }
     insertsearch();
-    fakeScrollDown();
 }
 else if(document.location.href.indexOf('/item') != -1){
     waitForEl2();
