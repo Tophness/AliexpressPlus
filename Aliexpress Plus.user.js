@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.2.0
+// @version      3.2.1
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -1322,7 +1322,7 @@ function fakeScrollDown(){
 async function docalctotal(){
     if(!document.getElementById('wishlist-tbody')){
         let itempageshipping;
-        if(itemsunsafewindowmode){
+        if(!itemsunsafewindowmode){
             itempageshipping = document.querySelector('.product-shipping-price') || document.querySelector('.dynamic-shipping-titleLayout');
             if(itempageshipping){
                 itempageshipping = itempageshipping.innerText;
@@ -1334,7 +1334,7 @@ async function docalctotal(){
         }
         else{
             let runparams = await getParams();
-            itempageshipping = getPriceFromParams(runparams);
+            itempageshipping = getPriceFromParams(runparams.data);
         }
         var itempageprice = document.querySelector('.product-price-value');
         if(itempageprice){
