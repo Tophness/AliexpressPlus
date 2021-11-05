@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.1.7
+// @version      3.2.0
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -157,6 +157,11 @@ GM_config.init(
                 type: 'checkbox',
                 default: true
             },
+            'itemsunsafewindowmode': {
+                label: 'Wishlist: Get Shipping using unSafeWindow Mode',
+                type: 'checkbox',
+                default: true
+            },
             'UseSideImgs': {
                 label: 'Wishlist: Search Listing Images (On The Left Side Previews)',
                 type: 'checkbox',
@@ -209,7 +214,7 @@ var sortmethod = GM_config.fields.sortmode.settings.options.indexOf(GM_config.ge
 var pagesearch = GM_config.get('pagesearch');
 var unsafewindowmode = GM_config.fields.windowmode.settings.options.indexOf(GM_config.get('windowmode'))+1;
 var getextraitems = GM_config.get('getextraitems');
-
+var itemsunsafewindowmode = GM_config.get('itemsunsafewindowmode');
 GM_addStyle(".tabs{overflow:hidden;clear:both;} .tabs ul{list-style-type:none;bottom: -1px;position:relative;} .tabs li{float:left;} .tablist span{cursor: pointer;display:block;padding:5px 10px;text-decoration: none;margin: 0 4px;border-top:1px solid #CCC;border-left:1px solid #DDD;border-right:1px solid #DDD;font:13px/18px verdana,arial,sans-serif;border-bottom:1px solid #CCC;} .tablist span.exact{background-color: red;color: #fff;} .tablist span.containstext{background-color: blue;color: #fff;} .tablist span.relative{background-color: green;color: #fff;} .tablist span.images{background-color: yellow;color: #000;} .tablist span.active{background-color: #eee;color: #000;border-bottom:1px solid #fff;}");
 
 (function () {
@@ -560,14 +565,60 @@ async function finalwishliststart(pricetext){
     }
 }
 
-function formatPageShipping(text){
-    text = text.substring(text.indexOf('window.runParams = {'));
-    text = text.substring(text.indexOf('data: {')+6);
-    text = text.substring(0, text.indexOf('csrfToken'));
-    text = text.substring(0, text.lastIndexOf(','));
+function formatPrice2(text){
+    return parseFloat(text.substring(text.indexOf('$') + 1));
+}
+
+function getPriceFromParams(params){
     try{
+        if(params.shippingModule.freightCalculateInfo.freight){
+            return parseFloat(params.shippingModule.freightCalculateInfo.freight.freightAmount.value);
+        }
+        else{
+            let multishipping = params.shippingModule.generalFreightInfo;
+            if(multishipping){
+                let freightAmounts = multishipping.originalLayoutResultList;
+                if(freightAmounts){
+                    if(freightAmounts.length > 0){
+                        if(freightAmounts[0].bizData.formattedAmount){
+                            freightAmounts.sort(function (a, b) {
+                                return formatPrice2(a.bizData.formattedAmount) - formatPrice2(b.bizData.formattedAmount);
+                            });
+                            return(formatPrice2(freightAmounts[0].bizData.formattedAmount));
+                        }
+                        else{
+                            return(0);
+                        }
+                    }
+                    else{
+                        return(0);
+                    }
+                }
+                else{
+                    return(0);
+                }
+            }
+            else{
+                return(0);
+            }
+        }
+    }
+    catch(e){
+        console.log(e);
+        pagesearch = false;
+        GM_config.set('pagesearch', false);
+        return(0);
+    }
+}
+
+function formatPageShipping(text){
+    try{
+        text = text.substring(text.indexOf('window.runParams = {'));
+        text = text.substring(text.indexOf('data: {')+6);
+        text = text.substring(0, text.indexOf('csrfToken'));
+        text = text.substring(0, text.lastIndexOf(','));
         if(text.length > 0){
-            return parseFloat(JSON.parse(text).shippingModule.freightCalculateInfo.freight.freightAmount.value);
+            return(getPriceFromParams(JSON.parse(text)));
         }
         else{
             return(0);
@@ -836,7 +887,6 @@ function createItem(link, imgsrc, title, storename, storelink, currencycode, pri
         e_15.appendChild(pricepretext);
         let e_16 = document.createElement("span");
         e_16.setAttribute("class", "price-current");
-        //e_16.setAttribute("data-price", price);
         e_16.appendChild(document.createTextNode(price));
         e_15.appendChild(e_16);
         e_11.appendChild(e_15);
@@ -957,7 +1007,6 @@ function createItem(link, imgsrc, title, storename, storelink, currencycode, pri
         e_15.appendChild(pricepretext);
         let e_16 = document.createElement("span");
         e_16.setAttribute("class", "price-current");
-        //e_16.setAttribute("data-price", price);
         e_16.appendChild(document.createTextNode(price));
         e_15.appendChild(e_16);
         e_10.appendChild(e_15);
@@ -1108,7 +1157,7 @@ async function processall3(){
 }
 
 async function sortall(listitems, sortmethod){
-    if(unsafewindowmode == 1){
+    if(unsafewindowmode == 2){
         sortingnow = true;
         observer.disconnect();
     }
@@ -1134,7 +1183,7 @@ async function sortall(listitems, sortmethod){
             }
         }
     }
-    if(unsafewindowmode == 1){
+    if(unsafewindowmode == 2){
         sortingnow = false;
         observer.observe(document.querySelector("div.product-container > div + div"), { childList: true });
     }
@@ -1270,14 +1319,23 @@ function fakeScrollDown(){
     }),100);
 }
 
-function docalctotal(){
-    var itempageshipping = document.querySelector('.product-shipping-price');
-    if(itempageshipping){
-        itempageshipping = itempageshipping.innerText;
-        if(itempageshipping.indexOf('Free Shipping') != -1){
-            itempageshipping = '0.00';
+async function docalctotal(){
+    if(!document.getElementById('wishlist-tbody')){
+        let itempageshipping;
+        if(itemsunsafewindowmode){
+            itempageshipping = document.querySelector('.product-shipping-price') || document.querySelector('.dynamic-shipping-titleLayout');
+            if(itempageshipping){
+                itempageshipping = itempageshipping.innerText;
+                if(itempageshipping.indexOf('Free Shipping') != -1){
+                    itempageshipping = '0.00';
+                }
+                itempageshipping = parseFloat(itempageshipping.substring(itempageshipping.indexOf('$')+1).trimEnd());
+            }
         }
-        itempageshipping = parseFloat(itempageshipping.substring(itempageshipping.indexOf('$')+1).trimEnd());
+        else{
+            let runparams = await getParams();
+            itempageshipping = getPriceFromParams(runparams);
+        }
         var itempageprice = document.querySelector('.product-price-value');
         if(itempageprice){
             itempageprice = itempageprice.innerText;
