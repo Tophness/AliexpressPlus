@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.2.3
+// @version      3.2.4
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -1369,8 +1369,33 @@ async function docalctotal(itempageprice){
     }
 }
 
+function addpricestoitemproperties(pricelist, propitem){
+    for (let i = 0; i < pricelist.length; i++) {
+        let pricename = pricelist[i].skuAttr.split("#");
+        for (let i2 = 0; i2 < pricename.length; i2++) {
+            if(pricename[i2].indexOf(':') == -1){
+                let pricename2 = pricename[i2].substring(pricename[i2].indexOf('#')+1);
+                if(pricename2.indexOf(';') != -1){
+                    pricename2 = pricename2.substring(0, pricename2.indexOf(';'));
+                }
+                if(pricename2 == propitem.firstChild.innerText || pricename2 == propitem.firstChild.firstChild.title){
+                    let propdiv = document.createElement('div');
+                    propdiv.className = 'sku-property-text';
+                    if(pricelist[i].skuVal.skuActivityAmount){
+                        propdiv.innerHTML = "$" + pricelist[i].skuVal.skuActivityAmount.value + "";
+                    }
+                    else{
+                        propdiv.innerHTML = "$" + pricelist[i].skuVal.skuMultiCurrencyDisplayPrice + "";
+                    }
+                    propitem.appendChild(propdiv);
+                    break;
+                }
+            }
+        }
+    }
+}
 
-function calctotal(){
+async function calctotal(){
     let itempageprice = document.querySelector('.product-price-value') || document.querySelector('.product-price-current') || document.querySelector('.uniform-banner-box-price');
     let config = { childList: true, subtree: true, characterData: true };
     let observer4 = new MutationObserver(function(mutationsList, observer) {
@@ -1381,6 +1406,8 @@ function calctotal(){
     observer4.observe(itempageprice, config);
     let proplist = document.querySelector('.sku-wrap');
     if(proplist && proplist.childNodes.length > 0){
+        let runparams = await getParams();
+        let pricelist = runparams.data.skuModule.skuPriceList;
         let proplistall = proplist.querySelectorAll('.sku-property');
         let docalc = false;
         for (let i = 0; i < proplistall.length; i++) {
@@ -1390,13 +1417,26 @@ function calctotal(){
                     for (let i2 = 0; i2 < propitem.length; i2++) {
                         if(!propitem[i2].classList.contains('selected') && !propitem[i2].classList.contains('disabled')){
                             propitem[i2].click();
-                            break;
+                            if(!itemsunsafewindowmode){
+                                break;
+                            }
+                        }
+                        if(itemsunsafewindowmode){
+                            addpricestoitemproperties(pricelist, propitem[i2]);
                         }
                     }
                 }
             }
             else{
                 docalc = true;
+                if(itemsunsafewindowmode){
+                    let propitem = proplistall[i].querySelectorAll('.sku-property-item');
+                    if(propitem && propitem.length > 0){
+                        for (let i2 = 0; i2 < propitem.length; i2++) {
+                            addpricestoitemproperties(pricelist, propitem[i2]);
+                        }
+                    }
+                }
             }
         }
         if(docalc){
