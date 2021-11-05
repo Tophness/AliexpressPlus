@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.2.1
+// @version      3.2.2
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -478,16 +478,21 @@ async function finalwishliststart(pricetext){
                 }
             }
             if(UseInnerHTMLImgs){
-                if(mainel.getElementsByClassName('sku-property-list').length > 0){
-                    let imgsall2 = mainel.getElementsByClassName('sku-property-list')[0].childNodes;
-                    for (let i5 = 0; i5 < imgsall2.length; i5++) {
-                        if(UseB64Imgs){
-                            let base64Img = await convertImgToBase64URL(imgsall2[i5].firstChild.firstChild.src);
-                            imgschild.push(base64Img[0]);
-                            imgsblob.push(base64Img[1]);
-                        }
-                        else{
-                            imgschild.push(imgsall2[i5].firstChild.firstChild.src);
+                let proplist = mainel.getElementsByClassName('sku-property-list');
+                if(proplist.length > 0){
+                    for (let i5 = 0; i5 < proplist.length; i5++) {
+                        let imgsall2 = proplist[i5].childNodes;
+                        for (let i6 = 0; i6 < imgsall2.length; i6++) {
+                            if(imgsall2[i6].firstChild.firstChild.src){
+                                if(UseB64Imgs){
+                                    let base64Img = await convertImgToBase64URL(imgsall2[i6].firstChild.firstChild.src);
+                                    imgschild.push(base64Img[0]);
+                                    imgsblob.push(base64Img[1]);
+                                }
+                                else{
+                                    imgschild.push(imgsall2[i6].firstChild.firstChild.src);
+                                }
+                            }
                         }
                     }
                 }
@@ -1319,74 +1324,78 @@ function fakeScrollDown(){
     }),100);
 }
 
-async function docalctotal(){
-    if(!document.getElementById('wishlist-tbody')){
-        let itempageshipping;
-        if(!itemsunsafewindowmode){
-            itempageshipping = document.querySelector('.product-shipping-price') || document.querySelector('.dynamic-shipping-titleLayout');
-            if(itempageshipping){
-                itempageshipping = itempageshipping.innerText;
-                if(itempageshipping.indexOf('Free Shipping') != -1){
-                    itempageshipping = '0.00';
-                }
-                itempageshipping = parseFloat(itempageshipping.substring(itempageshipping.indexOf('$')+1).trimEnd());
+async function docalctotal(itempageprice){
+    let itempageshipping;
+    if(!itemsunsafewindowmode){
+        itempageshipping = document.querySelector('.product-shipping-price') || document.querySelector('.dynamic-shipping-titleLayout');
+        if(itempageshipping){
+            itempageshipping = itempageshipping.innerText;
+            if(itempageshipping.indexOf('Free Shipping') != -1){
+                itempageshipping = '0.00';
             }
+            itempageshipping = parseFloat(itempageshipping.substring(itempageshipping.indexOf('$')+1).trimEnd());
+        }
+    }
+    else{
+        let runparams = await getParams();
+        itempageshipping = getPriceFromParams(runparams.data);
+    }
+    if(itempageprice.indexOf('-') != -1){
+        itempageprice = itempageprice.substring(0, itempageprice.indexOf('-')-1);
+    }
+    let preprice = itempageprice.substring(itempageprice.indexOf(':')+1, itempageprice.indexOf('$')+1);
+    itempageprice = parseFloat(itempageprice.substring(itempageprice.indexOf('$')+1).trimEnd());
+    let itempagetotal = parseFloat(itempageshipping + itempageprice).toFixed(2).toString();
+    let finalcostpretext = document.createElement('span');
+    finalcostpretext.className = 'total-pretext';
+    finalcostpretext.innerHTML = "Total: " + preprice + itempagetotal;
+    finalcostpretext.style.fontSize = "24px";
+    finalcostpretext.style.fontWeight = "700";
+    let finalcostdiv = document.createElement('div');
+    finalcostdiv.className = 'total-current';
+    finalcostdiv.appendChild(finalcostpretext);
+    let insertitemtotal = document.querySelector('.product-action');
+    if(insertitemtotal){
+        let pretextitem = document.querySelector('.product-info').querySelector('.total-pretext');
+        if(pretextitem){
+            pretextitem.innerHTML = "Total: " + preprice + itempagetotal;
         }
         else{
-            let runparams = await getParams();
-            itempageshipping = getPriceFromParams(runparams.data);
+            insertitemtotal.parentNode.insertBefore(finalcostdiv, insertitemtotal);
         }
-        var itempageprice = document.querySelector('.product-price-value');
-        if(itempageprice){
-            itempageprice = itempageprice.innerText;
-            var preprice = itempageprice.substring(itempageprice.indexOf(':')+1, itempageprice.indexOf('$')+1);
-            itempageprice = parseFloat(itempageprice.substring(itempageprice.indexOf('$')+1).trimEnd());
-            var itempagetotal = parseFloat(itempageshipping + itempageprice).toFixed(2).toString();
-            var finalcostpretext = document.createElement('span');
-            finalcostpretext.className = 'total-pretext';
-            finalcostpretext.innerHTML = "Total: " + preprice + itempagetotal;
-            finalcostpretext.style.fontSize = "24px";
-            finalcostpretext.style.fontWeight = "700";
-            var finalcostdiv = document.createElement('div');
-            finalcostdiv.className = 'total-current';
-            finalcostdiv.appendChild(finalcostpretext);
-            var insertitemtotal = document.querySelector('.product-action');
-            if(insertitemtotal){
-                var pretextitem = document.querySelector('.total-pretext');
-                if(pretextitem){
-                    pretextitem.innerHTML = "Total: " + preprice + itempagetotal;
-                }
-                else{
-                    insertitemtotal.parentNode.insertBefore(finalcostdiv, insertitemtotal);
-                }
-                finalwishliststart(itempagetotal);
-            }
+        if(!document.getElementById('wishlist-tbody')){
+            finalwishliststart(itempagetotal);
         }
     }
 }
 
+
 function calctotal(){
-    var proplist = document.querySelector('.sku-wrap');
+    let itempageprice = document.querySelector('.product-price-value') || document.querySelector('.product-price-current') || document.querySelector('.uniform-banner-box-price');
+    let config = { childList: true, subtree: true, characterData: true };
+    let observer4 = new MutationObserver(function(mutationsList, observer) {
+        for(const mutation of mutationsList) {
+            docalctotal(mutation.target.textContent);
+        }
+    });
+    observer4.observe(itempageprice, config);
+    let proplist = document.querySelector('.sku-wrap');
     if(proplist && proplist.childNodes.length > 0){
-        var proplistall = proplist.querySelectorAll('.sku-property');
-        for (var i = 0; i < proplistall.length; i++) {
-            var propitem = proplistall[i].querySelectorAll('.sku-property-item');
+        let proplistall = proplist.querySelectorAll('.sku-property');
+        for (let i = 0; i < proplistall.length; i++) {
+            let propitem = proplistall[i].querySelectorAll('.sku-property-item');
             if(propitem && propitem.length > 0){
+                for (let i2 = 0; i2 < propitem.length; i2++) {
+                    if(!propitem[i2].classList.contains('selected') && !propitem[i2].classList.contains('disabled')){
+                        propitem[i2].click();
+                        break;
+                    }
+                }
                 if(!propitem[0].classList.contains('selected')){
                     propitem[0].click();
                 }
-                for (var i2 = 0; i2 < propitem.length; i2++) {
-                    propitem[i2].addEventListener('click', function() {
-                        setTimeout((function(){
-                            docalctotal();
-                        }),1000);
-                    });
-                }
             }
         }
-        setTimeout((function(){
-            docalctotal();
-        }),1000);
     }
     else{
         docalctotal();
@@ -1394,11 +1403,11 @@ function calctotal(){
 }
 
 function getshippingdates(){
-    var deliverydiv = document.querySelector('.product-shipping-delivery');
+    let deliverydiv = document.querySelector('.product-shipping-delivery');
     if(deliverydiv){
-        var shippingtime = deliverydiv.childNodes[1].innerText;
-        var shippingtime1 = shippingtime.split('-');
-        var shippingtime2 = shippingtime1[1];
+        let shippingtime = deliverydiv.childNodes[1].innerText;
+        let shippingtime1 = shippingtime.split('-');
+        let shippingtime2 = shippingtime1[1];
         shippingtime1 = shippingtime1[0];
         var today = new Date();
         if(shippingtime2){
