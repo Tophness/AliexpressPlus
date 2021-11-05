@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.2.4
+// @version      3.2.5
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -1369,27 +1369,44 @@ async function docalctotal(itempageprice){
     }
 }
 
+function appendpricestoitemproperties(propitem, pricelistitem, pretext = ""){
+    let propdiv = document.createElement('div');
+    propdiv.className = 'sku-property-text';
+    let proptxt;
+    if(pricelistitem.skuVal.skuActivityAmount){
+        proptxt = pretext + "$" + pricelistitem.skuVal.skuActivityAmount.value + "";
+    }
+    else{
+        proptxt = pretext + "$" + pricelistitem.skuVal.skuMultiCurrencyDisplayPrice + "";
+    }
+    propdiv.innerHTML = proptxt;
+    propitem.appendChild(propdiv);
+}
+
 function addpricestoitemproperties(pricelist, propitem){
     for (let i = 0; i < pricelist.length; i++) {
         let pricename = pricelist[i].skuAttr.split("#");
-        for (let i2 = 0; i2 < pricename.length; i2++) {
-            if(pricename[i2].indexOf(':') == -1){
-                let pricename2 = pricename[i2].substring(pricename[i2].indexOf('#')+1);
-                if(pricename2.indexOf(';') != -1){
-                    pricename2 = pricename2.substring(0, pricename2.indexOf(';'));
-                }
-                if(pricename2 == propitem.firstChild.innerText || pricename2 == propitem.firstChild.firstChild.title){
-                    let propdiv = document.createElement('div');
-                    propdiv.className = 'sku-property-text';
-                    if(pricelist[i].skuVal.skuActivityAmount){
-                        propdiv.innerHTML = "$" + pricelist[i].skuVal.skuActivityAmount.value + "";
+        for (let i2 = 1; i2 < pricename.length; i2++) {
+            let pricename2 = pricename[i2].substring(pricename[i2].indexOf('#')+1);
+            if(pricename2.indexOf(';') != -1){
+                pricename2 = pricename2.substring(0, pricename2.indexOf(';'));
+            }
+            if(pricename2 == propitem.firstChild.innerText || pricename2 == propitem.firstChild.firstChild.title){
+                let proptxt;
+                if(pricename.length > 2){
+                    if(i2 < pricename.length - 1){
+                        let pretext = pricename[i2+1].substring(pricename[i2+1].indexOf('#')+1);
+                        if(pretext.indexOf(';') != -1){
+                            pretext = pretext.substring(0, pretext.indexOf(';'));
+                        }
+                        pretext = pretext + " = ";
+                        appendpricestoitemproperties(propitem, pricelist[i], pretext);
                     }
-                    else{
-                        propdiv.innerHTML = "$" + pricelist[i].skuVal.skuMultiCurrencyDisplayPrice + "";
-                    }
-                    propitem.appendChild(propdiv);
-                    break;
                 }
+                else{
+                    appendpricestoitemproperties(propitem, pricelist[i]);
+                }
+                break;
             }
         }
     }
