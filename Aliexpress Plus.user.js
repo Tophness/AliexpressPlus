@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.2.2
+// @version      3.2.3
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -1382,23 +1382,29 @@ function calctotal(){
     let proplist = document.querySelector('.sku-wrap');
     if(proplist && proplist.childNodes.length > 0){
         let proplistall = proplist.querySelectorAll('.sku-property');
+        let docalc = false;
         for (let i = 0; i < proplistall.length; i++) {
-            let propitem = proplistall[i].querySelectorAll('.sku-property-item');
-            if(propitem && propitem.length > 0){
-                for (let i2 = 0; i2 < propitem.length; i2++) {
-                    if(!propitem[i2].classList.contains('selected') && !propitem[i2].classList.contains('disabled')){
-                        propitem[i2].click();
-                        break;
+            if(proplistall[i].querySelector('sku-title-value') && proplistall[i].querySelector('sku-title-value').innerHTML == ""){
+                let propitem = proplistall[i].querySelectorAll('.sku-property-item');
+                if(propitem && propitem.length > 0){
+                    for (let i2 = 0; i2 < propitem.length; i2++) {
+                        if(!propitem[i2].classList.contains('selected') && !propitem[i2].classList.contains('disabled')){
+                            propitem[i2].click();
+                            break;
+                        }
                     }
                 }
-                if(!propitem[0].classList.contains('selected')){
-                    propitem[0].click();
-                }
             }
+            else{
+                docalc = true;
+            }
+        }
+        if(docalc){
+            docalctotal(itempageprice.innerText);
         }
     }
     else{
-        docalctotal();
+        docalctotal(itempageprice.innerText);
     }
 }
 
