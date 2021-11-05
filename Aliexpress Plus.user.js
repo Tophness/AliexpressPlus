@@ -160,7 +160,7 @@ GM_config.init(
             'itemsunsafewindowmode': {
                 label: 'Wishlist: Get Shipping using unSafeWindow Mode',
                 type: 'checkbox',
-                default: false
+                default: true
             },
             'UseSideImgs': {
                 label: 'Wishlist: Search Listing Images (On The Left Side Previews)',
