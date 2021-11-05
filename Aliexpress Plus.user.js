@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.2.7
+// @version      3.2.8
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -215,7 +215,7 @@ var pagesearch = GM_config.get('pagesearch');
 var unsafewindowmode = GM_config.fields.windowmode.settings.options.indexOf(GM_config.get('windowmode'))+1;
 var getextraitems = GM_config.get('getextraitems');
 var itemsunsafewindowmode = GM_config.get('itemsunsafewindowmode');
-GM_addStyle(".tabs{overflow:hidden;clear:both;} .tabs ul{list-style-type:none;bottom: -1px;position:relative;} .tabs li{float:left;} .tablist span{cursor: pointer;display:block;padding:5px 10px;text-decoration: none;margin: 0 4px;border-top:1px solid #CCC;border-left:1px solid #DDD;border-right:1px solid #DDD;font:13px/18px verdana,arial,sans-serif;border-bottom:1px solid #CCC;} .tablist span.exact{background-color: red;color: #fff;} .tablist span.containstext{background-color: blue;color: #fff;} .tablist span.relative{background-color: green;color: #fff;} .tablist span.images{background-color: yellow;color: #000;} .tablist span.active{background-color: #eee;color: #000;border-bottom:1px solid #fff;}");
+GM_addStyle(".tabs{overflow:hidden;clear:both;} .tabs ul{list-style-type:none;bottom: -1px;position:relative;} .tabs li{float:left;} .tablist span{cursor: pointer;display:block;padding:5px 10px;text-decoration: none;margin: 0 4px;border-top:1px solid #CCC;border-left:1px solid #DDD;border-right:1px solid #DDD;font:13px/18px verdana,arial,sans-serif;border-bottom:1px solid #CCC;} .tablist span.exact{background-color: red;color: #fff;} .tablist span.containstext{background-color: blue;color: #fff;} .tablist span.relative{background-color: green;color: #fff;} .tablist span.images{background-color: yellow;color: #000;} .tablist span.active{background-color: #eee;color: #000;border-bottom:1px solid #fff;} .sku-property-text2{visibility: hidden; background-color: black; color: #fff; text-align: left; padding: 5px 0; border-radius: 6px; position: absolute; z-index: 1;} .sku-property-item:hover .sku-property-text2 {visibility: visible;}");
 
 (function () {
     let default_floor = 0.5;
@@ -1370,8 +1370,20 @@ async function docalctotal(itempageprice){
 }
 
 function appendpricestoitemproperties(propitem, pricelistitem, pretext = ""){
-    let propdiv = document.createElement('div');
-    propdiv.className = 'sku-property-text';
+    let propdiv;
+    if(pretext != ""){
+        if(!propitem.querySelector('.sku-property-text2')){
+            propdiv = document.createElement('div');
+            propdiv.className = 'sku-property-text2';
+        }
+        else{
+            propdiv = propitem.querySelector('.sku-property-text2');
+        }
+    }
+    else{
+        propdiv = document.createElement('div');
+        propdiv.className = 'sku-property-text';
+    }
     let proptxt;
     if(pricelistitem.skuVal.skuActivityAmount){
         proptxt = pretext + "$" + pricelistitem.skuVal.skuActivityAmount.value + "";
@@ -1379,7 +1391,10 @@ function appendpricestoitemproperties(propitem, pricelistitem, pretext = ""){
     else{
         proptxt = pretext + "$" + pricelistitem.skuVal.skuMultiCurrencyDisplayPrice + "";
     }
-    propdiv.innerHTML = proptxt;
+    let propspan = document.createElement('span');
+    propspan.style = "display: block";
+    propspan.innerHTML = proptxt;
+    propdiv.appendChild(propspan);
     if(propitem.innerText.indexOf(proptxt) == -1){
         propitem.appendChild(propdiv);
     }
@@ -1402,14 +1417,16 @@ function addpricestoitemproperties(pricelist, propitem){
             for (let i5 = 0; i5 < propnames.length; i5++) {
                 if(propnames[i5] == propitem.firstChild.innerText || propnames[i5] == propitem.firstChild.firstChild.title){
                     if(propids.length > 1){
-                        if(i5 < propnames.length - 1){
+                        if(i5 < propnames.length){
                             let pretextar = propnames.filter(
                                 function(val){
                                     return val != propnames[i5];
                                 }
                             )
-                            let pretext = pretextar.join(' + ') + " = ";
-                            appendpricestoitemproperties(propitem, pricelist.skuPriceList[i], pretext);
+                            if(pretextar.length > 0){
+                                let pretext = pretextar.join(' + ') + " = ";
+                                appendpricestoitemproperties(propitem, pricelist.skuPriceList[i], pretext);
+                            }
                         }
                     }
                     else{
