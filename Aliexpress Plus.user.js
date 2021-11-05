@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.2.8
+// @version      3.2.9
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -1370,20 +1370,6 @@ async function docalctotal(itempageprice){
 }
 
 function appendpricestoitemproperties(propitem, pricelistitem, pretext = ""){
-    let propdiv;
-    if(pretext != ""){
-        if(!propitem.querySelector('.sku-property-text2')){
-            propdiv = document.createElement('div');
-            propdiv.className = 'sku-property-text2';
-        }
-        else{
-            propdiv = propitem.querySelector('.sku-property-text2');
-        }
-    }
-    else{
-        propdiv = document.createElement('div');
-        propdiv.className = 'sku-property-text';
-    }
     let proptxt;
     if(pricelistitem.skuVal.skuActivityAmount){
         proptxt = pretext + "$" + pricelistitem.skuVal.skuActivityAmount.value + "";
@@ -1391,12 +1377,36 @@ function appendpricestoitemproperties(propitem, pricelistitem, pretext = ""){
     else{
         proptxt = pretext + "$" + pricelistitem.skuVal.skuMultiCurrencyDisplayPrice + "";
     }
-    let propspan = document.createElement('span');
-    propspan.style = "display: block";
-    propspan.innerHTML = proptxt;
-    propdiv.appendChild(propspan);
     if(propitem.innerText.indexOf(proptxt) == -1){
-        propitem.appendChild(propdiv);
+        let propdiv;
+        if(pretext != ""){
+            if(!propitem.querySelector('.sku-property-text3') && !propitem.querySelector('.sku-property-text2')){
+                propdiv = document.createElement('div');
+                propdiv.className = 'sku-property-text3';
+            }
+            else{
+                propdiv = propitem.querySelector('.sku-property-text3');
+                if(propdiv){
+                    if(propdiv.childNodes.length > 2){
+                        propdiv.className = 'sku-property-text2';
+                    }
+                }
+                else{
+                    propdiv = propitem.querySelector('.sku-property-text2');
+                }
+            }
+        }
+        else{
+            propdiv = document.createElement('div');
+            propdiv.className = 'sku-property-text';
+        }
+        let propspan = document.createElement('span');
+        propspan.style = "display: block";
+        propspan.innerHTML = proptxt;
+        propdiv.appendChild(propspan);
+        if(!propitem.querySelector('.sku-property-text3') && !propitem.querySelector('.sku-property-text2')){
+            propitem.appendChild(propdiv);
+        }
     }
 }
 
