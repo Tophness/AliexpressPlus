@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.2.5
+// @version      3.2.6
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -1384,29 +1384,32 @@ function appendpricestoitemproperties(propitem, pricelistitem, pretext = ""){
 }
 
 function addpricestoitemproperties(pricelist, propitem){
-    for (let i = 0; i < pricelist.length; i++) {
-        let pricename = pricelist[i].skuAttr.split("#");
-        for (let i2 = 1; i2 < pricename.length; i2++) {
-            let pricename2 = pricename[i2].substring(pricename[i2].indexOf('#')+1);
-            if(pricename2.indexOf(';') != -1){
-                pricename2 = pricename2.substring(0, pricename2.indexOf(';'));
-            }
-            if(pricename2 == propitem.firstChild.innerText || pricename2 == propitem.firstChild.firstChild.title){
-                let proptxt;
-                if(pricename.length > 2){
-                    if(i2 < pricename.length - 1){
-                        let pretext = pricename[i2+1].substring(pricename[i2+1].indexOf('#')+1);
-                        if(pretext.indexOf(';') != -1){
-                            pretext = pretext.substring(0, pretext.indexOf(';'));
-                        }
-                        pretext = pretext + " = ";
-                        appendpricestoitemproperties(propitem, pricelist[i], pretext);
+    for (let i = 0; i < pricelist.skuPriceList.length; i++) {
+        let propids = pricelist.skuPriceList[i].skuPropIds.split(",");
+        let propnames = [];
+        for (let i2 = 0; i2 < propids.length; i2++) {
+            let proplist = pricelist.productSKUPropertyList;
+            for (let i3 = 0; i3 < proplist.length; i3++) {
+                let propvals = proplist[i3].skuPropertyValues;
+                for (let i4 = 0; i4 < propvals.length; i4++) {
+                    if(propvals[i4].propertyValueId == propids[i2]){
+                        propnames.push(propvals[i4].propertyValueDisplayName);
                     }
                 }
-                else{
-                    appendpricestoitemproperties(propitem, pricelist[i]);
+            }
+            for (let i5 = 0; i5 < propnames.length; i5++) {
+                if(propnames[i5] == propitem.firstChild.innerText || propnames[i5] == propitem.firstChild.firstChild.title){
+                    if(propids.length > 1){
+                        if(i5 < propnames.length - 1){
+                            let pretext = propnames[i5+1] + " = ";
+                            appendpricestoitemproperties(propitem, pricelist.skuPriceList[i], pretext);
+                        }
+                    }
+                    else{
+                        appendpricestoitemproperties(propitem, pricelist.skuPriceList[i]);
+                        break;
+                    }
                 }
-                break;
             }
         }
     }
@@ -1424,7 +1427,7 @@ async function calctotal(){
     let proplist = document.querySelector('.sku-wrap');
     if(proplist && proplist.childNodes.length > 0){
         let runparams = await getParams();
-        let pricelist = runparams.data.skuModule.skuPriceList;
+        let pricelist = runparams.data.skuModule;
         let proplistall = proplist.querySelectorAll('.sku-property');
         let docalc = false;
         for (let i = 0; i < proplistall.length; i++) {
