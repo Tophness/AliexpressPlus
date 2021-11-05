@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.2.6
+// @version      3.2.7
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -1380,7 +1380,9 @@ function appendpricestoitemproperties(propitem, pricelistitem, pretext = ""){
         proptxt = pretext + "$" + pricelistitem.skuVal.skuMultiCurrencyDisplayPrice + "";
     }
     propdiv.innerHTML = proptxt;
-    propitem.appendChild(propdiv);
+    if(propitem.innerText.indexOf(proptxt) == -1){
+        propitem.appendChild(propdiv);
+    }
 }
 
 function addpricestoitemproperties(pricelist, propitem){
@@ -1401,7 +1403,12 @@ function addpricestoitemproperties(pricelist, propitem){
                 if(propnames[i5] == propitem.firstChild.innerText || propnames[i5] == propitem.firstChild.firstChild.title){
                     if(propids.length > 1){
                         if(i5 < propnames.length - 1){
-                            let pretext = propnames[i5+1] + " = ";
+                            let pretextar = propnames.filter(
+                                function(val){
+                                    return val != propnames[i5];
+                                }
+                            )
+                            let pretext = pretextar.join(' + ') + " = ";
                             appendpricestoitemproperties(propitem, pricelist.skuPriceList[i], pretext);
                         }
                     }
@@ -1431,32 +1438,22 @@ async function calctotal(){
         let proplistall = proplist.querySelectorAll('.sku-property');
         let docalc = false;
         for (let i = 0; i < proplistall.length; i++) {
-            if(proplistall[i].querySelector('sku-title-value') && proplistall[i].querySelector('sku-title-value').innerHTML == ""){
-                let propitem = proplistall[i].querySelectorAll('.sku-property-item');
-                if(propitem && propitem.length > 0){
-                    for (let i2 = 0; i2 < propitem.length; i2++) {
-                        if(!propitem[i2].classList.contains('selected') && !propitem[i2].classList.contains('disabled')){
-                            propitem[i2].click();
-                            if(!itemsunsafewindowmode){
-                                break;
-                            }
-                        }
-                        if(itemsunsafewindowmode){
-                            addpricestoitemproperties(pricelist, propitem[i2]);
-                        }
+            let dofirstclick = (!proplistall[i].querySelector('.sku-title-value') || (proplistall[i].querySelector('.sku-title-value') && proplistall[i].querySelector('.sku-title-value').innerHTML == ""));
+            let propitem = proplistall[i].querySelectorAll('.sku-property-item');
+            if(propitem && propitem.length > 0){
+                let hasclicked = false;
+                for (let i2 = 0; i2 < propitem.length; i2++) {
+                    if(dofirstclick && !hasclicked && !propitem[i2].classList.contains('selected') && !propitem[i2].classList.contains('disabled')){
+                        hasclicked = true;
+                        propitem[i2].click();
+                    }
+                    if(itemsunsafewindowmode){
+                        addpricestoitemproperties(pricelist, propitem[i2]);
                     }
                 }
             }
-            else{
+            if(!dofirstclick){
                 docalc = true;
-                if(itemsunsafewindowmode){
-                    let propitem = proplistall[i].querySelectorAll('.sku-property-item');
-                    if(propitem && propitem.length > 0){
-                        for (let i2 = 0; i2 < propitem.length; i2++) {
-                            addpricestoitemproperties(pricelist, propitem[i2]);
-                        }
-                    }
-                }
             }
         }
         if(docalc){
