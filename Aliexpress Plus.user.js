@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.2.9
+// @version      3.3.0
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -522,6 +522,8 @@ async function finalwishliststart(pricetext){
                 orders.splice(orders.indexOf(dupnum), 1);
             }
             if (orders) {
+                let wishbox = document.createElement('div');
+                wishbox.style="float: left";
                 let wishb = document.createElement('div');
                 let title = document.createElement('h2');
                 title.id = 'ui-box-title';
@@ -533,8 +535,9 @@ async function finalwishliststart(pricetext){
                 });
                 wishb.id = 'wishlist-tbody';
                 wishb.setAttribute('style', 'align:top;position:absolute;width:18%');
-                document.getElementById('header').appendChild(title);
-                document.getElementById('header').appendChild(wishb);
+                wishbox.appendChild(title);
+                wishbox.appendChild(wishb);
+                document.querySelector('.glodetail-wrap').prepend(wishbox);
                 waitForEl3();
                 GM_registerMenuCommand("Configure", function (){document.querySelector("#ui-box-title").className = "active";});
                 startTabs();
@@ -885,7 +888,6 @@ function createItem(link, imgsrc, title, storename, storelink, currencycode, pri
         e_11.appendChild(e_12);
         let e_15 = document.createElement("div");
         e_15.setAttribute("class", "_2mXVg");
-        e_15.setAttribute("data-spm-anchor-id", "a2g0o.productlist.0.i9.356c179eF6Srjn");
         let pricepretext = document.createElement("span");
         pricepretext.setAttribute("class", "pricepretext");
         pricepretext.appendChild(document.createTextNode(currencycode + " $"));
@@ -994,9 +996,7 @@ function createItem(link, imgsrc, title, storename, storelink, currencycode, pri
         e_12.setAttribute("target", "_blank");
         e_12.setAttribute("title", title);
         e_12.setAttribute("href", link);
-        e_12.setAttribute("data-spm-anchor-id", "a2g0o.productlist.0.0");
         let e_13 = document.createElement("span");
-        e_13.setAttribute("data-spm-anchor-id", "a2g0o.productlist.0.i8.7f62179etN8cvA");
         e_13.appendChild(document.createTextNode(title));
         e_12.appendChild(e_13);
         e_11.appendChild(e_12);
@@ -1528,6 +1528,53 @@ function waitForEl3(){
     });
 }
 
+function turnoffpaginationreload(){
+    var observerd = new MutationObserver(function (mutations) {
+        mutations.forEach(function(mutation) {
+            if(mutation.type == 'childList'){
+                for (var j = 0; j < mutation.addedNodes.length; j++) {
+                    let list = mutation.addedNodes[j].querySelector('.next-pagination-list').childNodes;
+                    for (let i = 0; i < list.length; i++) {
+                        list[i].addEventListener('click', function(e){
+                            let clicked = e.target || e.srcElement;
+                            let cpage = document.location.href.substring(document.location.href.indexOf('page=')+5);
+                            if(cpage.indexOf('&') != -1){
+                                cpage = cpage.substring(0,cpage.indexOf('&'));
+                            }
+                            document.location.href = document.location.href.replace("page=" + cpage, "page=" + clicked.innerHTML);
+                        });
+                    }
+                    if(mutation.addedNodes[j].querySelector('.next-next')){
+                        mutation.addedNodes[j].querySelector('.next-next').addEventListener('click', function(e){
+                            let clicked = e.target || e.srcElement;
+                            let cpage = document.location.href.substring(document.location.href.indexOf('page=')+5);
+                            if(cpage.indexOf('&') != -1){
+                                cpage = cpage.substring(0,cpage.indexOf('&'));
+                            }
+                            document.location.href = document.location.href.replace("page=" + cpage, "page=" + (parseInt(cpage)+1).toString());
+                        });
+                    }
+                    if(mutation.addedNodes[j].querySelector('.next-prev')){
+                        mutation.addedNodes[j].querySelector('.next-prev').addEventListener('click', function(e){
+                            let clicked = e.target || e.srcElement;
+                            let cpage = document.location.href.substring(document.location.href.indexOf('page=')+5);
+                            if(cpage.indexOf('&') != -1){
+                                cpage = cpage.substring(0,cpage.indexOf('&'));
+                            }
+                            document.location.href = document.location.href.replace("page=" + cpage, "page=" + (parseInt(cpage)-1).toString());
+                        });
+                    }
+                }
+            }
+        });
+        return;
+    });
+
+    observerd.observe(document.querySelector(".list-pagination"), {
+        childList: true
+    });
+}
+
 function injecthiddencftrigger(){
     if(document.getElementsByClassName('sort').length > 0){
         let titlediv = document.createElement('div');
@@ -1565,6 +1612,7 @@ if(document.location.href.indexOf('/wholesale') != -1 || document.location.href.
         fakeScrollDown();
     }
     insertsearch();
+    turnoffpaginationreload();
 }
 else if(document.location.href.indexOf('/item') != -1){
     waitForEl2();
