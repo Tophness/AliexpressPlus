@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Aliexpress Plus
 // @namespace    http://www.facebook.com/Tophness
-// @version      3.3.0
+// @version      3.3.5
 // @description  Sorts search results by item price properly with shipping costs included, enhances item pages
 // @author       Tophness
 // @match        https://*.aliexpress.com/w/wholesale*
@@ -523,18 +523,19 @@ async function finalwishliststart(pricetext){
             }
             if (orders) {
                 let wishbox = document.createElement('div');
-                wishbox.style="float: left";
+                wishbox.id = 'wishbox';
+                wishbox.style="float: left; padding-left: 5px;";
                 let wishb = document.createElement('div');
                 let title = document.createElement('h2');
                 title.id = 'ui-box-title';
                 title.innerHTML = 'Similar Wishlist Items';
-                title.style = "cursor: pointer";
+                title.style = "cursor: pointer; padding-left: 5px;";
                 title.addEventListener('click', function(e){
                     let clicked = e.target || e.srcElement;
                     clicked.classList.add('active');
                 });
                 wishb.id = 'wishlist-tbody';
-                wishb.setAttribute('style', 'align:top;position:absolute;width:18%');
+                wishb.setAttribute('style', 'align:top; position:absolute; width:18%; padding-left: 5px;');
                 wishbox.appendChild(title);
                 wishbox.appendChild(wishb);
                 document.querySelector('.glodetail-wrap').prepend(wishbox);
@@ -832,8 +833,9 @@ function processall(list){
     }
 }
 
-function createItem(link, imgsrc, title, storename, storelink, currencycode, price, shipping, itemstype2, extraitems) {
+function createItem(productid, imgsrc, title, storename, storelink, currencycode, price, shipping, itemstype2, extraitems) {
     var container = document.createDocumentFragment();
+    let link = 'https://www.aliexpress.com/item/' + productid + '.html';
     if(itemstype2 == 1){
         let e_1 = document.createElement("div");
         e_1.setAttribute("class", "_1OUGS");
@@ -1067,7 +1069,7 @@ function createItem(link, imgsrc, title, storename, storelink, currencycode, pri
     return container;
 }
 
-async function findShipping2(sellingpoints, link){
+async function findShipping2(sellingpoints, productid){
     if(sellingpoints){
         for (let i = 0; i < sellingpoints.length; i++) {
             if(sellingpoints[i].tagContent && sellingpoints[i].tagContent.tagText){
@@ -1081,7 +1083,7 @@ async function findShipping2(sellingpoints, link){
         }
     }
     if(pagesearch){
-        return await getPageShipping(link);
+        return await getPageShipping('https://www.aliexpress.com/item/' + productid + '.html');
     }
     else{
         return 0;
@@ -1132,8 +1134,10 @@ async function getParams(){
     });
 }
 
-async function processall3(){
-    let runparams = await getParams();
+async function processall3(runparams = null){
+    if(!runparams){
+        runparams = await getParams();
+    }
     let allitems = runparams.mods.itemList.content;
     let currencycode = runparams.exposureParams.ship_to;
     let newitems = [];
@@ -1142,14 +1146,16 @@ async function processall3(){
         itemstype2 = 2;
     }
     for (let i = 0; i < allitems.length; i++) {
-        let link = allitems[i].productDetailUrl, imgsrc = allitems[i].image.imgUrl, title = allitems[i].title.displayTitle, storename = allitems[i].store.storeName, storelink = allitems[i].store.storeUrl, price = allitems[i].prices.salePrice.minPrice, shipping = await findShipping2(allitems[i].sellingPoints, link);
+        let productid = allitems[i].productId, imgsrc = allitems[i].image.imgUrl, title = allitems[i].title.displayTitle, storename = allitems[i].store.storeName, storelink = allitems[i].store.storeUrl, price = allitems[i].prices.salePrice.minPrice, shipping = await findShipping2(allitems[i].sellingPoints, productid);
         let extraitems = [];
         if(getextraitems){
             extraitems = await findExtras(allitems[i].sellingPoints);
         }
-        newitems.push(createItem(link, imgsrc, title, storename, storelink, currencycode, price, shipping, itemstype2, extraitems));
+        newitems.push(createItem(productid, imgsrc, title, storename, storelink, currencycode, price, shipping, itemstype2, extraitems));
     }
-    let metaparent = document.querySelector("div.product-container > div");
+    let metaparent = document.querySelector("div.product-container");
+    let before = metaparent.querySelector('div.list-pagination');
+    //let metaparent = document.querySelector("div.product-container > div");
     let parent = document.querySelector("div.product-container > div + div");
     let oldclassname = parent.className;
     parent.parentNode.removeChild(parent);
@@ -1157,7 +1163,8 @@ async function processall3(){
     newparent.id = "listitems";
     newparent.className = oldclassname;
     appendall(newitems, newparent);
-    metaparent.appendChild(newparent);
+    metaparent.insertBefore(newparent, before);
+    //metaparent.appendChild(newparent);
     SortRows(sortmethod);
 }
 
@@ -1528,51 +1535,170 @@ function waitForEl3(){
     });
 }
 
+async function getPageParams(page, cpage=""){
+    return new Promise((responseDetails) => {
+        let args = document.location.href.substring(document.location.href.indexOf(document.location.pathname) + document.location.pathname.length + 1);
+        if(args.indexOf('page=') != -1){
+            args = args.replace("page=" + cpage, "page=" + page);
+        }
+        else{
+            args = args + "&page=" + page;
+        }
+        GM_xmlhttpRequest ( {
+            method:     'GET',
+            responseType: 'json',
+            headers:    {
+                Accept:  'application/json, text/plain, */*',
+                Referer:  document.location.href
+            },
+            url:        'https://www.aliexpress.com/glosearch/api/product?' + args,
+            onload:     function (response) {
+                processall3(JSON.parse(response.responseText));
+            }
+        } );
+    });
+}
+
+function setabs(clicked){
+    let cpage;
+    let cpageel;
+    let npage = parseInt(clicked.innerHTML);
+    let list2 = document.querySelector('.next-pagination-list').childNodes;
+    for (let i2 = 0; i2 < list2.length; i2++) {
+        if(list2[i2].classList.contains('next-current')){
+            cpage = parseInt(list2[i2].innerHTML);
+            list2[i2].classList.remove('next-current');
+            if(clicked.innerHTML.indexOf("Next") != -1){
+                npage = cpage+1;
+                cpageel = list2[i2 + 1];
+            }
+            else if(clicked.innerHTML.indexOf("Previous") != -1){
+                npage = cpage-1;
+                cpageel = list2[i2 - 1];
+            }
+            break;
+        }
+    }
+    let newpage = document.createElement('button');
+    newpage.setAttribute('type',"button");
+    newpage.setAttribute('role',"button");
+    newpage.setAttribute('aria-label', "Page 6, 7 pages");
+    newpage.className="next-btn next-medium next-btn-normal next-pagination-item";
+    newpage.addEventListener('click', function(e){
+        let clicked2 = e.target || e.srcElement;
+        setabs(clicked2);
+    });
+    if(cpage < npage){
+        document.querySelector('.next-pagination-list').removeChild(list2[0]);
+        newpage.innerHTML = (parseInt(list2[list2.length-1].innerHTML) + 1).toString();
+        document.querySelector('.next-pagination-list').append(newpage);
+    }
+    else{
+        document.querySelector('.next-pagination-list').removeChild(list2[list2.length-1]);
+        newpage.innerHTML = (parseInt(list2[0].innerHTML) - 1).toString();
+        document.querySelector('.next-pagination-list').prepend(newpage);
+    }
+    if(cpageel){
+        cpageel.classList.add('next-current');
+    }
+    else{
+        clicked.classList.add('next-current');
+    }
+    getPageParams(npage.toString(), cpage.toString());
+}
+
+function addpageevent(elem){
+    elem.addEventListener('click', function(e){
+        let clicked = e.target || e.srcElement;
+        setabs(clicked);
+    });
+}
+
 function turnoffpaginationreload(){
-    var observerd = new MutationObserver(function (mutations) {
-        mutations.forEach(function(mutation) {
-            if(mutation.type == 'childList'){
-                for (var j = 0; j < mutation.addedNodes.length; j++) {
-                    let list = mutation.addedNodes[j].querySelector('.next-pagination-list').childNodes;
-                    for (let i = 0; i < list.length; i++) {
-                        list[i].addEventListener('click', function(e){
-                            let clicked = e.target || e.srcElement;
-                            let cpage = document.location.href.substring(document.location.href.indexOf('page=')+5);
-                            if(cpage.indexOf('&') != -1){
-                                cpage = cpage.substring(0,cpage.indexOf('&'));
-                            }
-                            document.location.href = document.location.href.replace("page=" + cpage, "page=" + clicked.innerHTML);
-                        });
-                    }
-                    if(mutation.addedNodes[j].querySelector('.next-next')){
-                        mutation.addedNodes[j].querySelector('.next-next').addEventListener('click', function(e){
-                            let clicked = e.target || e.srcElement;
-                            let cpage = document.location.href.substring(document.location.href.indexOf('page=')+5);
-                            if(cpage.indexOf('&') != -1){
-                                cpage = cpage.substring(0,cpage.indexOf('&'));
-                            }
-                            document.location.href = document.location.href.replace("page=" + cpage, "page=" + (parseInt(cpage)+1).toString());
-                        });
-                    }
-                    if(mutation.addedNodes[j].querySelector('.next-prev')){
-                        mutation.addedNodes[j].querySelector('.next-prev').addEventListener('click', function(e){
-                            let clicked = e.target || e.srcElement;
-                            let cpage = document.location.href.substring(document.location.href.indexOf('page=')+5);
-                            if(cpage.indexOf('&') != -1){
-                                cpage = cpage.substring(0,cpage.indexOf('&'));
-                            }
-                            document.location.href = document.location.href.replace("page=" + cpage, "page=" + (parseInt(cpage)-1).toString());
-                        });
+    if(unsafewindowmode == 1){
+        let observerd = new MutationObserver(function (mutations) {
+            mutations.forEach(function(mutation) {
+                if(mutation.type == 'childList'){
+                    for (var j = 0; j < mutation.addedNodes.length; j++) {
+                        let list = mutation.addedNodes[j].querySelector('.next-pagination-list').childNodes;
+                        for (let i = 0; i < list.length; i++) {
+                            list[i].outerHTML = list[i].outerHTML;
+                            addpageevent(list[i]);
+                        }
+                        if(mutation.addedNodes[j].querySelector('.next-next')){
+                            mutation.addedNodes[j].querySelector('.next-next').outerHTML = mutation.addedNodes[j].querySelector('.next-next').outerHTML;
+                            addpageevent(mutation.addedNodes[j].querySelector('.next-next'));
+                        }
+                        if(mutation.addedNodes[j].querySelector('.next-prev')){
+                            mutation.addedNodes[j].querySelector('.next-prev').outerHTML = mutation.addedNodes[j].querySelector('.next-prev').outerHTML;
+                            addpageevent(mutation.addedNodes[j].querySelector('.next-prev'));
+                        }
                     }
                 }
-            }
+            });
+            return;
         });
-        return;
-    });
 
-    observerd.observe(document.querySelector(".list-pagination"), {
-        childList: true
-    });
+        observerd.observe(document.querySelector(".list-pagination"), {
+            childList: true
+        });
+    }
+    else{
+        let observerd = new MutationObserver(function (mutations) {
+            mutations.forEach(function(mutation) {
+                if(mutation.type == 'childList'){
+                    for (var j = 0; j < mutation.addedNodes.length; j++) {
+                        let list = mutation.addedNodes[j].querySelector('.next-pagination-list').childNodes;
+                        for (let i = 0; i < list.length; i++) {
+                            list[i].addEventListener('click', function(e){
+                                let clicked = e.target || e.srcElement;
+                                if(document.location.href.indexOf('page=') != -1){
+                                    let cpage = document.location.href.substring(document.location.href.indexOf('page=')+5);
+                                    if(cpage.indexOf('&') != -1){
+                                        cpage = cpage.substring(0,cpage.indexOf('&'));
+                                    }
+                                    document.location.href = document.location.href.replace("page=" + cpage, "page=" + clicked.innerHTML);
+                                }
+                                else{
+                                    document.location.href = document.location.href + "&page=" + clicked.innerHTML;
+                                }
+                            });
+                        }
+                        if(mutation.addedNodes[j].querySelector('.next-next')){
+                            mutation.addedNodes[j].querySelector('.next-next').addEventListener('click', function(e){
+                                let clicked = e.target || e.srcElement;
+                                if(document.location.href.indexOf('page=') != -1){
+                                    let cpage = document.location.href.substring(document.location.href.indexOf('page=')+5);
+                                    if(cpage.indexOf('&') != -1){
+                                        cpage = cpage.substring(0,cpage.indexOf('&'));
+                                    }
+                                    document.location.href = document.location.href.replace("page=" + cpage, "page=" + (parseInt(cpage)+1).toString());
+                                }
+                                else{
+                                    document.location.href = document.location.href + "&page=2";
+                                }
+                            });
+                        }
+                        if(mutation.addedNodes[j].querySelector('.next-prev')){
+                            mutation.addedNodes[j].querySelector('.next-prev').addEventListener('click', function(e){
+                                let clicked = e.target || e.srcElement;
+                                let cpage = document.location.href.substring(document.location.href.indexOf('page=')+5);
+                                if(cpage.indexOf('&') != -1){
+                                    cpage = cpage.substring(0,cpage.indexOf('&'));
+                                }
+                                document.location.href = document.location.href.replace("page=" + cpage, "page=" + (parseInt(cpage)-1).toString());
+                            });
+                        }
+                    }
+                }
+            });
+            return;
+        });
+
+        observerd.observe(document.querySelector(".list-pagination"), {
+            childList: true
+        });
+    }
 }
 
 function injecthiddencftrigger(){
