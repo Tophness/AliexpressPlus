@@ -32,6 +32,7 @@ if (window.top != window.self) {
 var tnum = 0;
 var sortingnow = false;
 var itemstype = 2;
+var valuteSymb = '€';
 
 var GM_SuperValue = new function () {
 
@@ -111,14 +112,14 @@ var GM_SuperValue = new function () {
 
         if (typeof varValue == "string") {
             //--- Is it a JSON value?
-            let regxp = new RegExp ('^' + JSON_MarkerStr + '(.+)$');
+            let regxp = new RegExp ('^' + JSON_MarkerStr + '(.+) *'+ valuteSymb);
             var m = varValue.match (regxp);
             if(m && m.length > 1) {
                 varValue = JSON.parse ( m[1] );
                 return varValue;
             }
 
-            let regxp2 = new RegExp ('^' + FunctionMarker + '((?:.|\n|\r)+)$');
+            let regxp2 = new RegExp ('^' + FunctionMarker + '((?:.|\n|\r)+) *'+valuteSymb);
             let m2 = varValue.match (regxp2);
             if (m2 && m2.length > 1) {
                 varValue = eval('(' + m2[1] + ')');
@@ -575,7 +576,7 @@ async function finalwishliststart(pricetext){
 }
 
 function formatPrice2(text){
-    return parseFloat(text.substring(text.indexOf('$') + 1));
+    return parseFloat(text.substring(text.indexOf(valuteSymb) + 1));
 }
 
 function getPriceFromParams(params){
@@ -654,20 +655,21 @@ async function getPageShipping(url){
 }
 
 function formatPrice(text){
-    return [text.substring(0, text.indexOf('$') + 1), parseFloat(text.substring(text.indexOf('$') + 1))];
+    if (valuteSymb != '$'){ text=text.replace('.',''); text=text.replace(',','.');}
+    return [text.substring(0, text.indexOf(valuteSymb) + 1), parseFloat(text.substring(text.indexOf(valuteSymb) + 1))];
 }
 
 function findPrice(listitem){
     if(itemstype == 1){
         let pricerow = listitem.querySelector('div:nth-child(3) > div > div');
         if(pricerow){
-            if(pricerow.innerHTML.substring(3).startsWith('$')){
+            if(pricerow.innerHTML.match(new RegExp ('^[^'+valuteSymb+']*'+valuteSymb+' *\\d+[.,]?\\d* *[^<]*$'))){
                 return formatPrice(pricerow.innerText).concat(pricerow);
             }
             else{
                 let alldivs = listitem.querySelectorAll("div > div");
                 for (let i = 0; i < alldivs.length; i++) {
-                    if(alldivs[i].innerHTML.substring(3).startsWith('$')){
+                    if(alldivs[i].innerHTML.match(new RegExp ('^[^'+valuteSymb+']*'+valuteSymb+' *\\d+[.,]?\\d* *[^<]*$'))){
                         return formatPrice(alldivs[i].innerText).concat(alldivs[i]);
                     }
                 }
@@ -676,7 +678,7 @@ function findPrice(listitem){
         else{
             let alldivs = listitem.querySelectorAll("div > div");
             for (let i = 0; i < alldivs.length; i++) {
-                if(alldivs[i].innerHTML.substring(3).startsWith('$')){
+                if(alldivs[i].innerHTML.match(new RegExp ('^[^'+valuteSymb+']*'+valuteSymb+' *\\d+[.,]?\\d* *[^<]*$'))){
                     return formatPrice(alldivs[i].innerText).concat(alldivs[i]);
                 }
             }
@@ -685,13 +687,13 @@ function findPrice(listitem){
     else if(itemstype == 2){
         let pricerow = listitem.querySelector('div:nth-child(2) > div:nth-child(2)');
         if(pricerow){
-            if(pricerow.innerText.substring(3).startsWith('$')){
+            if(pricerow.innerText.match(new RegExp ('^[^'+valuteSymb+']*'+valuteSymb+' *\\d+[.,]?\\d* *[^<]*$'))){
                 return formatPrice(pricerow.innerText).concat(pricerow);
             }
             else{
                 let alldivs = listitem.querySelectorAll("div > div");
                 for (let i = 0; i < alldivs.length; i++) {
-                    if(alldivs[i].innerText.substring(3).startsWith('$')){
+                    if(alldivs[i].innerText.match(new RegExp ('^[^'+valuteSymb+']*'+valuteSymb+' *\\d+[.,]?\\d* *[^<]*$'))){
                         return formatPrice(alldivs[i].innerText).concat(alldivs[i]);
                     }
                 }
@@ -703,7 +705,7 @@ function findPrice(listitem){
         else{
             let alldivs = listitem.querySelectorAll("div > div");
             for (let i = 0; i < alldivs.length; i++) {
-                if(alldivs[i].innerText.substring(3).startsWith('$')){
+                if(alldivs[i].innerText.match(new RegExp ('^[^'+valuteSymb+']*'+valuteSymb+'\d+[.,]?\d* *[?<]*$'))){
                     return formatPrice(alldivs[i].innerText).concat(alldivs[i]);
                 }
             }
@@ -712,11 +714,13 @@ function findPrice(listitem){
 }
 
 function formatShipping(text){
-    if(text.innerHTML.startsWith('+ Shipping')){
-        text = parseFloat(text.innerText.substring(text.innerText.indexOf('$') + 1));
+    if(text.innerHTML.includes('+ Shipping') || text.innerHTML.includes('+ Spedizione')){
+        let tmpText = text.innerHTML;
+        if (valuteSymb != '$'){ tmpText=tmpText.replace('.',''); tmpText=tmpText.replace(',','.');}
+        text = parseFloat(tmpText.substring(tmpText.indexOf(valuteSymb) + 1));
         return text;
     }
-    else if(text.innerHTML.startsWith('Free Shipping')){
+    else if(text.innerHTML.includes("Free ship") || text.innerHTML.includes("gratuit") || text.innerHTML.includes("gratis")){
         return 0;
     }
     else{
@@ -774,7 +778,7 @@ async function process(listitem){
             let totalPrice = price[1];
             if(shipping){
                 totalPrice += shipping;
-                price[2].innerHTML = price[2].innerHTML + " (+ $" + shipping + " Shipping)";
+                price[2].innerHTML = price[2].innerHTML + " (+ "+valuteSymb + shipping + " Shipping)";
             }
             totalPrice = totalPrice.toFixed(2);
             var finalcostdiv = document.createElement('div');
@@ -892,7 +896,7 @@ function createItem(productid, imgsrc, title, storename, storelink, currencycode
         e_15.setAttribute("class", "_2mXVg");
         let pricepretext = document.createElement("span");
         pricepretext.setAttribute("class", "pricepretext");
-        pricepretext.appendChild(document.createTextNode(currencycode + " $"));
+        pricepretext.appendChild(document.createTextNode(currencycode + " "+valuteSymb));
         e_15.appendChild(pricepretext);
         let e_16 = document.createElement("span");
         e_16.setAttribute("class", "price-current");
@@ -911,7 +915,7 @@ function createItem(productid, imgsrc, title, storename, storelink, currencycode
             e_19.appendChild(document.createTextNode("Free Shipping"));
         }
         else{
-            e_19.appendChild(document.createTextNode("+ Shipping: " + currencycode + " $" + shipping));
+            e_19.appendChild(document.createTextNode("+ Shipping: " + currencycode + " "+valuteSymb + shipping));
         }
         e_18.appendChild(e_19);
         if(extraitems){
@@ -928,7 +932,7 @@ function createItem(productid, imgsrc, title, storename, storelink, currencycode
         let totaldiv = document.createElement("div");
         totaldiv.setAttribute("class", "_2mXVg");
         let pretext = document.createElement("span");
-        pretext.appendChild(document.createTextNode("Total: " + currencycode + " $"));
+        pretext.appendChild(document.createTextNode("Total: " + currencycode + " "+valuteSymb));
         pretext.setAttribute("class", "total-current _12A8D");
         let e_20 = document.createElement("span");
         e_20.setAttribute("class", "total-current _12A8D");
@@ -1010,7 +1014,7 @@ function createItem(productid, imgsrc, title, storename, storelink, currencycode
         e_15.setAttribute("class", "_2mXVg");
         let pricepretext = document.createElement("span");
         pricepretext.setAttribute("class", "pricepretext");
-        pricepretext.appendChild(document.createTextNode(currencycode + " $"));
+        pricepretext.appendChild(document.createTextNode(currencycode + " "+valuteSymb));
         e_15.appendChild(pricepretext);
         let e_16 = document.createElement("span");
         e_16.setAttribute("class", "price-current");
@@ -1023,7 +1027,7 @@ function createItem(productid, imgsrc, title, storename, storelink, currencycode
             e_17.appendChild(document.createTextNode("Free Shipping"));
         }
         else{
-            e_17.appendChild(document.createTextNode("+ Shipping: " + currencycode + " $" + shipping));
+            e_17.appendChild(document.createTextNode("+ Shipping: " + currencycode + " "+valuteSymb + shipping));
         }
         e_10.appendChild(e_17);
         if(extraitems){
@@ -1053,7 +1057,7 @@ function createItem(productid, imgsrc, title, storename, storelink, currencycode
         e_22.setAttribute("class", "_2mXVg");
         let pretext = document.createElement("span");
         pretext.setAttribute("class", "_12A8D");
-        pretext.appendChild(document.createTextNode("Total: " + currencycode + " $"));
+        pretext.appendChild(document.createTextNode("Total: " + currencycode + " "+valutesymb));
         let e_23 = document.createElement("span");
         e_23.setAttribute("class", "total-current _12A8D");
         e_23.appendChild(document.createTextNode((parseFloat(price) + parseFloat(shipping)).toFixed(2).toString()));
@@ -1073,10 +1077,11 @@ async function findShipping2(sellingpoints, productid){
     if(sellingpoints){
         for (let i = 0; i < sellingpoints.length; i++) {
             if(sellingpoints[i].tagContent && sellingpoints[i].tagContent.tagText){
-                if(sellingpoints[i].tagContent.tagText.indexOf("+ Shipping") != -1){
-                    return parseFloat(sellingpoints[i].tagContent.tagText.substring(sellingpoints[i].tagContent.tagText.indexOf('$') + 1));
+                if(sellingpoints[i].tagContent.tagText.includes('+ Shipping') || sellingpoints[i].tagContent.tagText.includes('+ Spedizione')){
+                    let tmpText = sellingpoints[i].tagContent.tagText;
+                    return parseFloat2(tmpText.substring(tmpText.indexOf(valuteSymb) + 1));
                 }
-                else if(sellingpoints[i].tagContent.tagText.indexOf("Free Shipping") != -1){
+                else if(sellingpoints[i].tagContent.tagText.includes("Free ship") || sellingpoints[i].tagContent.tagText.includes("gratuit") || sellingpoints[i].tagContent.tagText.includes("gratis")){
                     return 0;
                 }
             }
@@ -1321,12 +1326,16 @@ function waitForEl2(){
 
 function fakeScrollDown(){
     setTimeout((function(){
-        window.scrollByPages(1);;
-        if(window.scrollY < window.scrollMaxY){
+        window.scrollBy({
+        top: window.innerHeight,
+        left: 0,
+        behavior: 'auto'
+        });
+        if(window.scrollY < window.document.body.scrollHeight-window.window.innerHeight){
             fakeScrollDown();
         }
         else{
-            window.scrollTo(0,0);
+            setTimeout(()=> window.scrollTo(0,0), 400);
         }
     }),100);
 }
@@ -1335,12 +1344,16 @@ async function docalctotal(itempageprice){
     let itempageshipping;
     if(!itemsunsafewindowmode){
         itempageshipping = document.querySelector('.product-shipping-price') || document.querySelector('.dynamic-shipping-titleLayout');
-        if(itempageshipping){
+        if(! /\d+/.test(itempageshipping.innerText)){
+            itempageshipping = 0;
+		}
+		else{
             itempageshipping = itempageshipping.innerText;
             if(itempageshipping.indexOf('Free Shipping') != -1){
                 itempageshipping = '0.00';
             }
-            itempageshipping = parseFloat(itempageshipping.substring(itempageshipping.indexOf('$')+1).trimEnd());
+            if (valuteSymb != '$'){ itempageshipping=itempageshipping.replace('.',''); itempageshipping=itempageshipping.replace(',','.');}
+            itempageshipping = parseFloat(itempageshipping.substring(itempageshipping.indexOf(valuteSymb)+1).trimEnd());
         }
     }
     else{
@@ -1350,8 +1363,10 @@ async function docalctotal(itempageprice){
     if(itempageprice.indexOf('-') != -1){
         itempageprice = itempageprice.substring(0, itempageprice.indexOf('-')-1);
     }
-    let preprice = itempageprice.substring(itempageprice.indexOf(':')+1, itempageprice.indexOf('$')+1);
-    itempageprice = parseFloat(itempageprice.substring(itempageprice.indexOf('$')+1).trimEnd());
+    itempageprice = itempageprice.innerText || itempageprice;
+    if (valuteSymb != '$'){ itempageprice=itempageprice.replace('.',''); itempageprice=itempageprice.replace(',','.');}
+    var preprice = itempageprice.substring(itempageprice.indexOf(':')+1, itempageprice.indexOf(valuteSymb)+1);
+    itempageprice = parseFloat(itempageprice.substring(itempageprice.indexOf(valuteSymb)+1).trimEnd());
     let itempagetotal = parseFloat(itempageshipping + itempageprice).toFixed(2).toString();
     let finalcostpretext = document.createElement('span');
     finalcostpretext.className = 'total-pretext';
@@ -1379,10 +1394,10 @@ async function docalctotal(itempageprice){
 function appendpricestoitemproperties(propitem, pricelistitem, pretext = ""){
     let proptxt;
     if(pricelistitem.skuVal.skuActivityAmount){
-        proptxt = pretext + "$" + pricelistitem.skuVal.skuActivityAmount.value + "";
+        proptxt = pretext + valuteSymb + pricelistitem.skuVal.skuActivityAmount.value + "";
     }
     else{
-        proptxt = pretext + "$" + pricelistitem.skuVal.skuMultiCurrencyDisplayPrice + "";
+        proptxt = pretext + valuteSymb + pricelistitem.skuVal.skuMultiCurrencyDisplayPrice + "";
     }
     if(propitem.innerText.indexOf(proptxt) == -1){
         let propdiv;
@@ -1458,9 +1473,43 @@ function addpricestoitemproperties(pricelist, propitem){
 
 async function calctotal(){
     let itempageprice = document.querySelector('.product-price-value') || document.querySelector('.product-price-current') || document.querySelector('.uniform-banner-box-price');
+    let itempageshipping;
     let config = { childList: true, subtree: true, characterData: true };
+    let observerShip;
+    function ShipWait(afterPriceChanged){
+        itempageshipping = document.querySelector('.product-shipping') || document.querySelector('.product-shipping-price>span') || document.querySelector('.product-shipping-price') || document.querySelector('.dynamic-shipping-titleLayout');
+        {
+            return new Promise(resolve => {
+                observerShip = new MutationObserver(function(mutationsList, observer) {
+                    let updated = false;
+                    for(const mutation of mutationsList) {
+                        if (! mutation.target.textContent.includes("Ship")) continue
+                        itempageshipping = document.querySelector('.product-shipping') || document.querySelector('.product-shipping-price>span') || document.querySelector('.product-shipping-price') || document.querySelector('.dynamic-shipping-titleLayout');
+                        if (itempageshipping){
+                            if (afterPriceChanged){
+                                afterPriceChanged = false;
+                                observerShip.disconnect()
+                                return resolve(true);
+                            }
+                            else{
+                                updated = true;
+                            }
+                        }
+                    }
+                    if (updated) docalctotal(itempageprice.textContent);
+                });
+                if (itempageshipping)
+                    observerShip.observe(itempageshipping, config);
+                else
+                    observerShip.observe(document, config);
+            });
+        }
+    }
     let observer4 = new MutationObserver(function(mutationsList, observer) {
         for(const mutation of mutationsList) {
+            ShipWait(true).then(()=> {
+                observerShip.disconnect();
+                observerShip.observe(itempageshipping, config);
             docalctotal(mutation.target.textContent);
         }
     });
@@ -1491,11 +1540,11 @@ async function calctotal(){
             }
         }
         if(docalc){
-            docalctotal(itempageprice.innerText);
+            //docalctotal(itempageprice.innerText);
         }
     }
     else{
-        docalctotal(itempageprice.innerText);
+        //docalctotal(itempageprice.innerText);
     }
 }
 
